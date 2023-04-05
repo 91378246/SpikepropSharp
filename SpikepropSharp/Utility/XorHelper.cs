@@ -8,7 +8,7 @@ namespace SpikepropSharp.Utility
         private const double SPIKE_TIME_TRUE = 10;
         private const double SPIKE_TIME_FALSE = 16;
 
-        public static List<Sample> GetDataset() => new()
+        private static List<Sample> GetDataset() => new()
         {
             new Sample(new List<double>() { 0, 0, 0 }, SPIKE_TIME_FALSE), // 0
             new Sample(new List<double>() { 0, SPIKE_TIME_INPUT, 0 }, SPIKE_TIME_TRUE), // 1
@@ -16,13 +16,13 @@ namespace SpikepropSharp.Utility
             new Sample(new List<double>() { SPIKE_TIME_INPUT, SPIKE_TIME_INPUT, 0 }, SPIKE_TIME_FALSE)  // 0
         };
 
-        public static bool ConvertSpikeTimeToResult(double prediction) =>
+        private static bool ConvertSpikeTimeToResult(double prediction) =>
             new List<double>() { SPIKE_TIME_TRUE, SPIKE_TIME_FALSE }
             .OrderBy(item => Math.Abs(prediction - item))
             .First() 
             == SPIKE_TIME_TRUE;
 
-        public static Network CreateNetwork(Random rnd)
+        private static Network CreateNetwork(Random rnd)
         {
             Network network = new(rnd);
             network.Create(
