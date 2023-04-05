@@ -115,7 +115,7 @@ namespace SpikepropSharp.Components
 
         public void LoadSample(Sample sample)
         {
-            if (sample.Input.Count + 1 != Layers[(int)Layer.Input].Count)
+            if (sample.Input.Count != Layers[(int)Layer.Input].Count)
             {
                 throw new ArgumentException($"Invalid sample input count {sample.Input.Count}, expected {Layers[(int)Layer.Input].Count - 1}");
             }

@@ -88,10 +88,10 @@ namespace SpikepropSharp.Utility
         private static List<Sample> GetDataset(Random rnd, int datasetSize = 5)
         {          
             List<Sample> dataset = new();
-            //IEnumerable<int> randomIndices = Enumerable.Range(0, (int)EcgSignalSpikesTrain.Last() - INPUT_SIZE)
-            //                   .OrderBy(i => rnd.Next())
-            //                   .Take(datasetSize);
-            IEnumerable<int> randomIndices = Enumerable.Range(0, datasetSize * INPUT_TIME_SIZE);
+            IEnumerable<int> randomIndices = Enumerable.Range(0, (int)EcgSignalSpikesTrain.Last() - INPUT_TIME_SIZE)
+                               .OrderBy(i => rnd.Next())
+                               .Take(datasetSize);
+            // IEnumerable<int> randomIndices = Enumerable.Range(0, datasetSize * INPUT_TIME_SIZE);
             foreach (int startT in randomIndices)
             {
                 int t = startT;
@@ -100,6 +100,8 @@ namespace SpikepropSharp.Utility
                 {
                     input.Add(EcgSignalSpikesTrain.Contains(t++) ? SPIKE_TIME_INPUT : 0);
                 }
+                // Bias
+                input.Add(0);
 
                 double label = EcgSignalLabelsTrain.Any(l => l >= startT && l < t) ? SPIKE_TIME_TRUE : SPIKE_TIME_FALSE;
                 dataset.Add(new Sample(input, label));
@@ -145,6 +147,8 @@ namespace SpikepropSharp.Utility
             // Multiple trials for statistics
             Parallel.For(0, trials, new ParallelOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount }, trial =>
             {
+                ConsoleColor color = GetColorForIndex(trial);
+
                 Network network = CreateNetwork(rnd);
                 Neuron output_neuron = network.Layers[(int)Layer.Output].First();
 
@@ -162,6 +166,7 @@ namespace SpikepropSharp.Utility
                         network.Forward(maxTime, timestep);
                         if (output_neuron.Spikes.Count == 0)
                         {
+                            Console.ForegroundColor = color;
                             Console.WriteLine($"[T{trial}] No output spikes! Replacing with different trial.");
                             trial -= 1;
                             sumSquaredError = epoch = (int)1e9;
@@ -183,6 +188,7 @@ namespace SpikepropSharp.Utility
                             }
                         }
                     }
+                    Console.ForegroundColor = color;
                     Console.WriteLine($"[T{trial}] ep:{epoch} er:{sumSquaredError} t:{sw.Elapsed:mm\\:ss}");
 
                     // Stopping criterion
@@ -232,6 +238,7 @@ namespace SpikepropSharp.Utility
                     }
                 }
 
+                Console.ForegroundColor = color;
                 Console.WriteLine("#############################################################################");
                 Console.WriteLine($"TRIAL {trial} TEST RESULT");
                 Console.WriteLine(cm.ToString());
@@ -243,6 +250,9 @@ namespace SpikepropSharp.Utility
             Console.WriteLine("\n#############################################################################");
             Console.WriteLine("Done");
             Console.ReadLine();
+
+            static ConsoleColor GetColorForIndex(int i) =>
+                (ConsoleColor)Enum.GetValues(typeof(ConsoleColor)).GetValue(i + 1);
         }
     }
 }

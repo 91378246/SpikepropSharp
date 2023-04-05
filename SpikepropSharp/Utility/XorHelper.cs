@@ -1,4 +1,5 @@
 ﻿using SpikepropSharp.Components;
+using System;
 
 namespace SpikepropSharp.Utility
 {
@@ -47,6 +48,7 @@ namespace SpikepropSharp.Utility
             // Multiple trials for statistics
             Parallel.For(0, trials, new ParallelOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount }, trial =>
             {
+                ConsoleColor color = GetColorForIndex(trial);
                 Network network = CreateNetwork(rnd);
                 Neuron output_neuron = network.Layers[(int)Layer.Output].First();
 
@@ -61,6 +63,7 @@ namespace SpikepropSharp.Utility
                         network.Forward(maxTime, timestep);
                         if (output_neuron.Spikes.Count == 0)
                         {
+                            Console.ForegroundColor = color;
                             Console.WriteLine($"[T{trial}] No output spikes! Replacing with different trial.");
                             trial -= 1;
                             sumSquaredError = epoch = (int)1e9;
@@ -82,6 +85,7 @@ namespace SpikepropSharp.Utility
                             }
                         }
                     }
+                    Console.ForegroundColor = color;
                     Console.WriteLine($"[T{trial}] ep:{epoch} er:{sumSquaredError}");
 
                     // Stopping criterion
@@ -131,6 +135,7 @@ namespace SpikepropSharp.Utility
                     }
                 }
 
+                Console.ForegroundColor = color;
                 Console.WriteLine("#############################################################################");
                 Console.WriteLine($"TRIAL {trial} TEST RESULT");
                 Console.WriteLine(cm.ToString());
@@ -139,7 +144,12 @@ namespace SpikepropSharp.Utility
 
             Console.Write("Average nr of epochs per trial: ");
             Console.WriteLine(AvgNrOfEpochs);
+            Console.WriteLine("\n#############################################################################");
+            Console.WriteLine("Done");
             Console.ReadLine();
+
+            static ConsoleColor GetColorForIndex(int i) =>
+                (ConsoleColor)Enum.GetValues(typeof(ConsoleColor)).GetValue(i + 1);
         }
     }
 }
