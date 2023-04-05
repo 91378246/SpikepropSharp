@@ -9,4 +9,4 @@ const double LEARNING_RATE = 1e-2;
 
 Random rnd = new(1);
 // XorHelper.RunTest(rnd, TRIALS, EPOCHS, TEST_RUNS, MAX_TIME, TIMESTEP, LEARNING_RATE);
-EcgHelper.RunTest(rnd, trials: 3, epochs: 10, testRuns: 10, MAX_TIME, timestep: 1, LEARNING_RATE);
+EcgHelper.RunTest(rnd, trials: 1, epochs: 10, testRuns: 3, MAX_TIME, timestep: 1, LEARNING_RATE);

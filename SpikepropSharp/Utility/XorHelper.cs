@@ -45,7 +45,7 @@ namespace SpikepropSharp.Utility
 
             double AvgNrOfEpochs = 0;
             // Multiple trials for statistics
-            for (int trial = 0; trial < trials; ++trial)
+            Parallel.For(0, trials, new ParallelOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount }, trial =>
             {
                 Network network = CreateNetwork(rnd);
                 Neuron output_neuron = network.Layers[(int)Layer.Output].First();
@@ -61,7 +61,7 @@ namespace SpikepropSharp.Utility
                         network.Forward(maxTime, timestep);
                         if (output_neuron.Spikes.Count == 0)
                         {
-                            Console.WriteLine("No output spikes! Replacing with different trial.");
+                            Console.WriteLine($"[T{trial}] No output spikes! Replacing with different trial.");
                             trial -= 1;
                             sumSquaredError = epoch = (int)1e9;
                             break;
@@ -82,12 +82,7 @@ namespace SpikepropSharp.Utility
                             }
                         }
                     }
-                    Console.Write(trial);
-                    Console.Write(" ");
-                    Console.Write(epoch);
-                    Console.Write(" ");
-                    Console.Write(sumSquaredError);
-                    Console.Write("\n");
+                    Console.WriteLine($"[T{trial}] ep:{epoch} er:{sumSquaredError}");
 
                     // Stopping criterion
                     if (sumSquaredError < 1.0)
@@ -140,7 +135,7 @@ namespace SpikepropSharp.Utility
                 Console.WriteLine($"TRIAL {trial} TEST RESULT");
                 Console.WriteLine(cm.ToString());
                 Console.WriteLine("#############################################################################");
-            }
+            });
 
             Console.Write("Average nr of epochs per trial: ");
             Console.WriteLine(AvgNrOfEpochs);

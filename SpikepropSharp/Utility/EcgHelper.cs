@@ -1,13 +1,13 @@
 ﻿using MatFileHandler;
 using SpikepropSharp.Components;
-using System.Threading.Tasks;
+using System.Diagnostics;
 
 namespace SpikepropSharp.Utility
 {
     internal static class EcgHelper
     {
         private const string DATA_DIR_PATH = "Data";
-        private const int INPUT_SIZE = 10;
+        private const int INPUT_TIME_SIZE = 10;
         private const double SPIKE_TIME_INPUT = 6;
         private const double SPIKE_TIME_TRUE = 10;
         private const double SPIKE_TIME_FALSE = 16;
@@ -88,14 +88,15 @@ namespace SpikepropSharp.Utility
         private static List<Sample> GetDataset(Random rnd, int datasetSize = 5)
         {          
             List<Sample> dataset = new();
-            IEnumerable<int> randomIndices = Enumerable.Range(0, (int)EcgSignalSpikesTrain.Last() - INPUT_SIZE)
-                               .OrderBy(i => rnd.Next())
-                               .Take(datasetSize);
-            foreach(int startT in randomIndices)
+            //IEnumerable<int> randomIndices = Enumerable.Range(0, (int)EcgSignalSpikesTrain.Last() - INPUT_SIZE)
+            //                   .OrderBy(i => rnd.Next())
+            //                   .Take(datasetSize);
+            IEnumerable<int> randomIndices = Enumerable.Range(0, datasetSize * INPUT_TIME_SIZE);
+            foreach (int startT in randomIndices)
             {
                 int t = startT;
                 List<double> input = new();
-                while (input.Count < INPUT_SIZE)
+                while (input.Count < INPUT_TIME_SIZE)
                 {
                     input.Add(EcgSignalSpikesTrain.Contains(t++) ? SPIKE_TIME_INPUT : 0);
                 }
@@ -104,9 +105,7 @@ namespace SpikepropSharp.Utility
                 dataset.Add(new Sample(input, label));
             }
 
-            return dataset;
-
-            
+            return dataset;          
         }
 
         private static bool ConvertSpikeTimeToResult(double prediction) =>
@@ -117,7 +116,7 @@ namespace SpikepropSharp.Utility
 
         private static Network CreateNetwork(Random rnd)
         {
-            string[] inputNeurons = new string[INPUT_SIZE + 1];
+            string[] inputNeurons = new string[INPUT_TIME_SIZE + 1];
             for (int i = 0; i < inputNeurons.Length - 1; i++)
             {
                 inputNeurons[i] = $"input {i}";
@@ -152,8 +151,10 @@ namespace SpikepropSharp.Utility
                 // Main training loop
                 for (int epoch = 0; epoch < epochs; ++epoch)
                 {
+                    Stopwatch sw = new();
+                    sw.Start();
+
                     double sumSquaredError = 0;
-                    int sampleI = 0;
                     foreach (Sample sample in GetDataset(rnd))
                     {
                         network.Clear();
@@ -182,7 +183,7 @@ namespace SpikepropSharp.Utility
                             }
                         }
                     }
-                    Console.WriteLine($"[T{trial}] ep:{epoch} er:{sumSquaredError}");
+                    Console.WriteLine($"[T{trial}] ep:{epoch} er:{sumSquaredError} t:{sw.Elapsed:mm\\:ss}");
 
                     // Stopping criterion
                     if (sumSquaredError < 1.0)
@@ -239,6 +240,7 @@ namespace SpikepropSharp.Utility
 
             Console.Write("Average nr of epochs per trial: ");
             Console.WriteLine(AvgNrOfEpochs);
+            Console.WriteLine("\n#############################################################################");
             Console.WriteLine("Done");
             Console.ReadLine();
         }
