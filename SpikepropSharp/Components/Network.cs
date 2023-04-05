@@ -115,7 +115,12 @@ namespace SpikepropSharp.Components
 
         public void LoadSample(Sample sample)
         {
-            for (int i = 0; i < Layers[(int)Layer.Input].Count; i++)
+            if (sample.Input.Count + 1 != Layers[(int)Layer.Input].Count)
+            {
+                throw new ArgumentException($"Invalid sample input count {sample.Input.Count}, expected {Layers[(int)Layer.Input].Count - 1}");
+            }
+
+            for (int i = 0; i < sample.Input.Count; i++)
             {
                 Layers[(int)Layer.Input][i].Fire(sample.Input[i]);
             }
@@ -131,7 +136,7 @@ namespace SpikepropSharp.Components
             LoadSample(sample);
             Forward(maxTime, timestep);
 
-            return output_neuron.Spikes.First();
+            return output_neuron.Spikes.FirstOrDefault();
         }
     }
 }

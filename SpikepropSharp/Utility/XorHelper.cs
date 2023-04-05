@@ -8,6 +8,10 @@ namespace SpikepropSharp.Utility
         private const double SPIKE_TIME_TRUE = 10;
         private const double SPIKE_TIME_FALSE = 16;
 
+        /// <summary>
+        /// [input 1, input 2, bias] = SPIKE_TIME_TRUE/SPIKE_TIME_FALSE
+        /// </summary>
+        /// <returns></returns>
         private static List<Sample> GetDataset() => new()
         {
             new Sample(new List<double>() { 0, 0, 0 }, SPIKE_TIME_FALSE), // 0
@@ -24,6 +28,7 @@ namespace SpikepropSharp.Utility
 
         private static Network CreateNetwork(Random rnd)
         {
+            // {2 + 1, 5, 1}
             Network network = new(rnd);
             network.Create(
                 namesInput: new[] { "input 1", "input 2", "bias" },
