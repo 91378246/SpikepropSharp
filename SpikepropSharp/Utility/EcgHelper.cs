@@ -1,6 +1,7 @@
 ﻿using MatFileHandler;
 using SpikepropSharp.Components;
 using System.Diagnostics;
+using System.Drawing;
 
 namespace SpikepropSharp.Utility
 {
@@ -107,14 +108,27 @@ namespace SpikepropSharp.Utility
                 dataset.Add(new Sample(input, label));
             }
 
+            // Force at least one TP dataset
+            if (!dataset.Any(d => d.Output == SPIKE_TIME_TRUE))
+            {
+                // Get a random label timestamp
+                double labelT = EcgSignalLabelsTrain[rnd.Next(EcgSignalLabelsTrain.Length)];
+                int t = (int)labelT - rnd.Next(INPUT_TIME_SIZE / 2);
+                List<double> input = new();
+                while (input.Count < INPUT_TIME_SIZE)
+                {
+                    input.Add(EcgSignalSpikesTrain.Contains(t++) ? SPIKE_TIME_INPUT : 0);
+                }
+                // Bias
+                input.Add(0);
+                dataset[^1] = new Sample(input, SPIKE_TIME_TRUE);
+            }
+
             return dataset;          
         }
 
-        private static bool ConvertSpikeTimeToResult(double prediction) =>
-            new List<double>() { SPIKE_TIME_TRUE, SPIKE_TIME_FALSE }
-            .OrderBy(item => Math.Abs(prediction - item))
-            .First()
-            == SPIKE_TIME_TRUE;
+        private static bool ConvertSpikeTimeToResult(double prediction) => 
+            Math.Abs(prediction - SPIKE_TIME_TRUE) < Math.Abs(prediction - SPIKE_TIME_FALSE);
 
         private static Network CreateNetwork(Random rnd)
         {
@@ -197,7 +211,28 @@ namespace SpikepropSharp.Utility
                         AvgNrOfEpochs = (AvgNrOfEpochs * trial + epoch) / (trial + 1);
                         break;
                     }
+
+                    if (epoch % 2 == 0)
+                    {
+                        Test(network, color, trial, epoch);
+                    }
                 }
+
+                Test(network, color, trial, epochs - 1);
+            });
+
+            Console.Write("Average nr of epochs per trial: ");
+            Console.WriteLine(AvgNrOfEpochs);
+            Console.WriteLine("\n#############################################################################");
+            Console.WriteLine("Done");
+            Console.ReadLine();
+
+            static ConsoleColor GetColorForIndex(int i) =>
+                (ConsoleColor)Enum.GetValues(typeof(ConsoleColor)).GetValue(i + 1);
+
+            void Test(Network network, ConsoleColor color, int trial, int epoch)
+            {
+                Console.WriteLine($"[T{trial}] Running {testRuns} tests ...");
 
                 // Test
                 ConfusionMatrix cm = new();
@@ -240,19 +275,10 @@ namespace SpikepropSharp.Utility
 
                 Console.ForegroundColor = color;
                 Console.WriteLine("#############################################################################");
-                Console.WriteLine($"TRIAL {trial} TEST RESULT");
+                Console.WriteLine($"TRIAL {trial} EPOCH {epoch} TEST RESULT");
                 Console.WriteLine(cm.ToString());
                 Console.WriteLine("#############################################################################");
-            });
-
-            Console.Write("Average nr of epochs per trial: ");
-            Console.WriteLine(AvgNrOfEpochs);
-            Console.WriteLine("\n#############################################################################");
-            Console.WriteLine("Done");
-            Console.ReadLine();
-
-            static ConsoleColor GetColorForIndex(int i) =>
-                (ConsoleColor)Enum.GetValues(typeof(ConsoleColor)).GetValue(i + 1);
+            }
         }
     }
 }

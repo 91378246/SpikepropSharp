@@ -98,21 +98,6 @@ namespace SpikepropSharp.Components
             }
         }
 
-        public void Forward(double maxTime, double timestep)
-        {
-            IEnumerable<Neuron> neuronsOutNoSpikes = Layers[(int)Layer.Output].Where(n => n.Spikes.Count == 0);
-            for (double time = 0.0; time < maxTime && neuronsOutNoSpikes.Any(); time += timestep)
-            {
-                foreach (List<Neuron> layer in Layers)
-                {
-                    foreach (Neuron neuron in layer)
-                    {
-                        neuron.Forward(time);
-                    }
-                }
-            }
-        }
-
         public void LoadSample(Sample sample)
         {
             if (sample.Input.Count != Layers[(int)Layer.Input].Count)
@@ -128,15 +113,28 @@ namespace SpikepropSharp.Components
             Layers[(int)Layer.Output][0].Clamped = sample.Output;
         }
 
+        public void Forward(double maxTime, double timestep)
+        {
+            IEnumerable<Neuron> neuronsOutNoSpikes = Layers[(int)Layer.Output].Where(n => n.Spikes.Count == 0);
+            for (double time = 0.0; time < maxTime && neuronsOutNoSpikes.Any(); time += timestep)
+            {
+                foreach (List<Neuron> layer in Layers)
+                {
+                    foreach (Neuron neuron in layer)
+                    {
+                        neuron.Forward(time);
+                    }
+                }
+            }
+        }
+
         public double Predict(Sample sample, double maxTime, double timestep)
         {
-            Neuron output_neuron = Layers[(int)Layer.Output].First();
-
             Clear();
             LoadSample(sample);
             Forward(maxTime, timestep);
 
-            return output_neuron.Spikes.FirstOrDefault();
+            return Layers[(int)Layer.Output].First().Spikes.FirstOrDefault();
         }
     }
 }

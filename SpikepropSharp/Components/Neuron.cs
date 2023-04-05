@@ -2,9 +2,10 @@
 {
     internal sealed class Neuron
     {
-        private const double TAU_M = 4.0;
-        private const double TAU_S = 2.0;
-        private const double TAU_R = 4.0;
+        private const double TAU_M = 4;
+        private const double TAU_S = 2;
+        private const double TAU_R = 4;
+        private const double THRESHOLD = 1;
 
         public string Name = "";
         public double Clamped { get; set; }
@@ -17,63 +18,24 @@
             Name = name;
         }
 
-        public double Epsilon(double s) // Eq (4)
-        {
-            if (s < 0.0)
-            {
-                return 0.0;
-            }
-            else
-            {
-                return Math.Exp(-s / TAU_M) - Math.Exp(-s / TAU_S);
-            }
-        }
+        public static double Epsilon(double s) => // Eq (4)
+            s < 0 ? 0 : Math.Exp(-s / TAU_M) - Math.Exp(-s / TAU_S);
 
-        public double Eta(in double s) // Eq (5)
-        {
-            if (s < 0.0)
-            {
-                return 0.0;
-            }
-            else
-            {
-                return -Math.Exp(-s / TAU_R);
-            }
-        }
+        public static double Eta(double s) => // Eq (5)
+            s < 0 ? 0 : -Math.Exp(-s / TAU_R);
 
-        public double Epsilond(in double s)
-        {
-            if (s < 0.0)
-            {
-                return 0.0;
-            }
-            else
-            {
-                return -Math.Exp(-s / TAU_M) / TAU_M + Math.Exp(-s / TAU_S) / TAU_S;
-            }
-        }
+        public double Epsilond(double s) =>
+            s < 0 ? 0 : -Math.Exp(-s / TAU_M) / TAU_M + Math.Exp(-s / TAU_S) / TAU_S;
 
-        public double Etad(in double s)
-        {
-            if (s < 0.0)
-            {
-                return 0.0;
-            }
-            else
-            {
-                return Math.Exp(-s / TAU_R) / TAU_R;
-            }
-        }
+        public double Etad(double s) => 
+            s < 0 ? 0 : Math.Exp(-s / TAU_R) / TAU_R;
 
-        public void Fire(double time)
-        {
+        public void Fire(double time) =>
             Spikes.Add(time);
-        }
 
         public void Forward(double time) // Eq (2)
         {
-            const double threshold = 1.0;
-            if (ComputeU(time) > threshold)
+            if (ComputeU(time) > THRESHOLD)
             {
                 Fire(time);
             }
@@ -81,18 +43,20 @@
 
         public double ComputeU(double time) // Eq (3)
         {
-            double u = 0.0;
-            foreach (var incoming_synapse in SynapsesIn)
+            double u = 0;
+            foreach (Synapse synapseIn in SynapsesIn)
             {
-                foreach (var pre_spike in incoming_synapse.NeuronPre.Spikes)
+                foreach (double spikePre in synapseIn.NeuronPre.Spikes)
                 {
-                    u += incoming_synapse.Weight * Epsilon(time - pre_spike - incoming_synapse.Delay);
+                    u += synapseIn.Weight * Epsilon(time - spikePre - synapseIn.Delay);
                 }
             }
-            foreach (var ref_spike in Spikes)
+
+            foreach (double spike in Spikes)
             {
-                u += Eta(time - ref_spike);
+                u += Eta(time - spike);
             }
+
             return u;
         }
 
@@ -100,52 +64,52 @@
         {
             foreach (Synapse synapse in SynapsesIn)
             {
-                foreach (double spike in Spikes)
+                foreach (double spikeThis in Spikes)
                 {
-                    synapse.WeightDelta -= learningRate * ComputeDeDt(spike) * ComputeDtDw(synapse, spike);
+                    synapse.WeightDelta -= learningRate * ComputeDeDt(spikeThis) * ComputeDtDw(synapse, spikeThis);
                 }
             }
         }
 
-        public double ComputeDtDw(Synapse synapse, double spike) // Eq (10)
+        public double ComputeDtDw(Synapse synapse, double spikeThis) // Eq (10)
         {
-            return -ComputeDuDw(synapse, spike) / ComputeDuDt(spike);
+            return -ComputeDuDw(synapse, spikeThis) / ComputeDuDt(spikeThis);
         }
 
-        public double ComputeDuDw(Synapse synapse, double spike) // Eq (11)
+        public double ComputeDuDw(Synapse synapse, double spikeThis) // Eq (11)
         {
             double duDw = 0.0;
-            foreach (double pre_spike in synapse.NeuronPre.Spikes)
+            foreach (double spikePre in synapse.NeuronPre.Spikes)
             {
-                duDw += Epsilon(spike - pre_spike - synapse.Delay);
+                duDw += Epsilon(spikeThis - spikePre - synapse.Delay);
             }
 
-            foreach (double ref_spike in Spikes)
+            foreach (double spikeRef in Spikes)
             {
-                if (ref_spike < spike)
+                if (spikeRef < spikeThis)
                 {
-                    duDw += -Etad(spike - ref_spike) * ComputeDtDw(synapse, ref_spike);
+                    duDw += -Etad(spikeThis - spikeRef) * ComputeDtDw(synapse, spikeRef);
                 }
             }
 
             return duDw;
         }
-        public double ComputeDuDt(in double spike) // Eq (12)
+        public double ComputeDuDt(double spikeThis) // Eq (12)
         {
             double duDt = 0.0;
             foreach (Synapse synapse in SynapsesIn)
             {
-                foreach (double pre_spike in synapse.NeuronPre.Spikes)
+                foreach (double spikePre in synapse.NeuronPre.Spikes)
                 {
-                    duDt += synapse.Weight * Epsilond(spike - pre_spike - synapse.Delay);
+                    duDt += synapse.Weight * Epsilond(spikeThis - spikePre - synapse.Delay);
                 }
             }
 
-            foreach (double ref_spike in Spikes)
+            foreach (double spikeRef in Spikes)
             {
-                if (ref_spike < spike)
+                if (spikeRef < spikeThis)
                 {
-                    duDt += Etad(spike - ref_spike);
+                    duDt += Etad(spikeThis - spikeRef);
                 }
             }
 
@@ -156,51 +120,51 @@
             return duDt;
         }
 
-        public double ComputeDeDt(double spike) // Eq (13)
+        public double ComputeDeDt(double spikeThis) // Eq (13)
         {
             if (Clamped > 0.0)
             {
-                if (spike == Spikes[0])
+                if (spikeThis == Spikes[0])
                 {
-                    return spike - Clamped;
+                    return spikeThis - Clamped;
                 }
             }
 
             double deDt = 0.0;
-            foreach (Neuron post_neuron_ptr in NeuronsPost)
+            foreach (Neuron neuronPost in NeuronsPost)
             {
-                foreach (double post_spike in post_neuron_ptr.Spikes)
+                foreach (double spikePost in neuronPost.Spikes)
                 {
-                    if (post_spike > spike)
+                    if (spikePost > spikeThis)
                     {
-                        deDt += post_neuron_ptr.ComputeDeDt(post_spike) * ComputeDposttDt(spike, post_neuron_ptr, post_spike);
+                        deDt += neuronPost.ComputeDeDt(spikePost) * ComputeDposttDt(spikeThis, neuronPost, spikePost);
                     }
                 }
             }
             return deDt;
         }
 
-        public double ComputeDposttDt(in double spike, Neuron post_neuron, in double post_spike) // Eq (14)
+        public double ComputeDposttDt(double spikeThis, Neuron neuronPost, double spikePost) // Eq (14)
         {
-            return -ComputeDpostuDt(spike, post_neuron, post_spike) / post_neuron.ComputeDuDt(post_spike);
+            return -ComputeDpostuDt(spikeThis, neuronPost, spikePost) / neuronPost.ComputeDuDt(spikePost);
         }
 
-        public double ComputeDpostuDt(in double spike, Neuron post_neuron, in double post_spike) // Eq (15)
+        public double ComputeDpostuDt(double spikeThis, Neuron neuronPost, double spikePost) // Eq (15)
         {
             double dpostuDt = 0.0;
-            foreach (Synapse synapse in post_neuron.SynapsesIn)
+            foreach (Synapse synapse in neuronPost.SynapsesIn)
             {
                 if (synapse.NeuronPre == this)
                 {
-                    dpostuDt -= synapse.Weight * Epsilond(post_spike - spike - synapse.Delay);
+                    dpostuDt -= synapse.Weight * Epsilond(spikePost - spikeThis - synapse.Delay);
                 }
             }
 
-            foreach (double ref_post_spike in post_neuron.Spikes)
+            foreach (double spikeRef in neuronPost.Spikes)
             {
-                if (ref_post_spike < post_spike)
+                if (spikeRef < spikePost)
                 {
-                    dpostuDt -= Etad(post_spike - ref_post_spike) * ComputeDposttDt(spike, post_neuron, ref_post_spike);
+                    dpostuDt -= Etad(spikePost - spikeRef) * ComputeDposttDt(spikeThis, neuronPost, spikeRef);
                 }
             }
             return dpostuDt;
