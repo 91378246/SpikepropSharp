@@ -16,15 +16,20 @@ namespace SpikepropSharp.Utility
 
         // Network
         private const int INPUT_SIZE = 10;
-        private const int T_MAX = 30;
+        private const int T_MAX = 40;
+        private const int TRIALS = 1;
+        private const int EPOCHS = 100;
+        private const int TEST_RUNS = 100;
+        private const double TIMESTEP = 0.1;
+        private const double LEARNING_RATE = 1e-2;
 
-        private static double[] EcgSignalSpikesTrain { get; set; } = null!;
+        private static Dictionary<double, bool> EcgSignalSpikesTrain { get; set; } = null!;
         private static double[] EcgSignalLabelsTrain { get; set; } = null!;
 
         private static void LoadData(int sampleIndex = SAMPLE_INDEX, double sodSamplingThreshold = SOD_SAMPLING_THRESHOLD)
         {
             double[] ecgSignalRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, $"ecg_{sampleIndex}.mat"), "signal");
-            EcgSignalSpikesTrain = ApplySodSampling(ecgSignalRaw, sodSamplingThreshold).ToArray();
+            EcgSignalSpikesTrain = ApplySodSampling(ecgSignalRaw, sodSamplingThreshold);
 
             double[] ecgSignalLabelsRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, $"ecg_{sampleIndex}_ann.mat"), "ann").ToArray();
             EcgSignalLabelsTrain = ConvertAnnotationTimestampsToLabels(ecgSignalLabelsRaw).ToArray();
@@ -54,24 +59,19 @@ namespace SpikepropSharp.Utility
             /// </summary>
             /// <param name="ecgSignal"></param>
             /// <param name="threshold"></param>
-            static List<double> ApplySodSampling(double[] ecgSignal, double threshold)
+            static Dictionary<double, bool> ApplySodSampling(double[] ecgSignal, double threshold)
             {
                 double yLevel = 0;
-                List<double> spikes = new();
+                Dictionary<double, bool> spikes = new();
 
                 for (int i = 0; i < ecgSignal.Length; i++)
                 {
                     double diff = ecgSignal[i] - yLevel;
-                    // Positive or negative spike
                     if (Math.Abs(diff) > threshold)
                     {
-                        spikes.Add(i);
+                        spikes[i] = Math.Sign(diff) > 0;
                         yLevel += Math.Sign(diff) * threshold;
                     }
-                    //else
-                    //{
-                    //    spikes.Add(i);
-                    //}
                 }
 
                 return spikes;
@@ -91,7 +91,7 @@ namespace SpikepropSharp.Utility
             }
         }
 
-        private static Sample[] GetDataset(Random rnd, int datasetSize = 6)
+        private static Sample[] GetDataset(Random rnd, int datasetSize = 10)
         {
             if (datasetSize % 2 != 0)
             {
@@ -119,7 +119,7 @@ namespace SpikepropSharp.Utility
                     while (t == 0)
                     {
                         // Get a random input time
-                        t = rnd.Next((int)EcgSignalSpikesTrain.Last() - INPUT_SIZE);
+                        t = rnd.Next((int)EcgSignalSpikesTrain.Last().Key - INPUT_SIZE);
 
                         // Set t to be equal or less than that input time
                         t -= rnd.Next(rnd.Next(INPUT_SIZE / 2));
@@ -136,7 +136,7 @@ namespace SpikepropSharp.Utility
                 List<double> input = new();
                 while (input.Count < INPUT_SIZE)
                 {
-                    input.Add(EcgSignalSpikesTrain.Contains(t++) ? SPIKE_TIME_INPUT : 0);
+                    input.Add(EcgSignalSpikesTrain.ContainsKey(t++) ? SPIKE_TIME_INPUT : 0);
                 }
                 // Bias
                 input.Add(0);
@@ -183,7 +183,7 @@ namespace SpikepropSharp.Utility
             return network;
         }
 
-        public static void RunTest(Random rnd, int trials, int epochs, int testRuns, double timestep, double learningRate)
+        public static void RunTest(Random rnd, bool runTestsInBetween = false)
         {
             Console.WriteLine("Loading data...");
             LoadData();
@@ -191,8 +191,9 @@ namespace SpikepropSharp.Utility
             Console.WriteLine("Running ECG test\n");
 
             double AvgNrOfEpochs = 0;
+
             // Multiple trials for statistics
-            Parallel.For(0, trials, new ParallelOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount }, trial =>
+            Parallel.For(0, TRIALS, new ParallelOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount }, trial =>
             {
                 ConsoleColor color = GetColorForIndex(trial);
 
@@ -200,7 +201,7 @@ namespace SpikepropSharp.Utility
                 Neuron output_neuron = network.Layers[(int)Layer.Output].First();
 
                 // Main training loop
-                for (int epoch = 0; epoch < epochs; ++epoch)
+                for (int epoch = 0; epoch < EPOCHS; ++epoch)
                 {
                     Stopwatch sw = new();
                     sw.Start();
@@ -210,7 +211,7 @@ namespace SpikepropSharp.Utility
                     {
                         network.Clear();
                         network.LoadSample(sample);
-                        network.Forward(T_MAX, timestep);
+                        network.Forward(T_MAX, TIMESTEP);
                         if (output_neuron.Spikes.Count == 0)
                         {
                             Console.ForegroundColor = color;
@@ -226,7 +227,7 @@ namespace SpikepropSharp.Utility
                         {
                             foreach (Neuron neuron in layer)
                             {
-                                neuron.ComputeDeltaWeights(learningRate);
+                                neuron.ComputeDeltaWeights(LEARNING_RATE);
                                 foreach (Synapse synapse in neuron.SynapsesIn)
                                 {
                                     synapse.Weight += synapse.WeightDelta;
@@ -245,13 +246,13 @@ namespace SpikepropSharp.Utility
                         break;
                     }
 
-                    if (epoch % 2 == 0)
+                    if (runTestsInBetween && epoch % 2 == 0)
                     {
                         Test(network, color, trial, epoch);
                     }
                 }
 
-                Test(network, color, trial, epochs - 1);
+                Test(network, color, trial, EPOCHS - 1);
             });
 
             Console.Write("Average nr of epochs per trial: ");
@@ -261,19 +262,19 @@ namespace SpikepropSharp.Utility
             Console.ReadLine();
 
             static ConsoleColor GetColorForIndex(int i) =>
-                (ConsoleColor)Enum.GetValues(typeof(ConsoleColor)).GetValue(i + 1)!;
+                (ConsoleColor)Enum.GetValues(typeof(ConsoleColor)).GetValue(i + 2)!;
 
             void Test(Network network, ConsoleColor color, int trial, int epoch)
             {
-                Console.WriteLine($"[T{trial}] Running {testRuns} tests ...");
+                Console.WriteLine($"[T{trial}] Running {TEST_RUNS} tests ...");
 
                 // Test
                 ConfusionMatrix cm = new();
-                for (int testRun = 0; testRun < testRuns; testRun++)
+                for (int testRun = 0; testRun < TEST_RUNS; testRun++)
                 {
                     foreach (Sample sample in GetDataset(rnd))
                     {
-                        double predictionRaw = network.Predict(sample, T_MAX, timestep);
+                        double predictionRaw = network.Predict(sample, T_MAX, TIMESTEP);
                         bool prediction = ConvertSpikeTimeToResult(predictionRaw);
                         bool label = ConvertSpikeTimeToResult(sample.Output);
 
