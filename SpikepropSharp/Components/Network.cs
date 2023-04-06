@@ -12,6 +12,7 @@ namespace SpikepropSharp.Components
     public class Network
     {
         public List<Neuron>[] Layers { get; }
+        public double CurrentError { get; set; } = double.MaxValue;
 
         private Random Rnd { get; }
 
@@ -75,7 +76,7 @@ namespace SpikepropSharp.Components
 
                 foreach (Synapse synapse in Layers[(int)Layer.Output].First().SynapsesIn)
                 {
-                    if (synapse.NeuronPre.Name == "hidden 5")
+                    if (synapse == Layers[(int)Layer.Output].First().SynapsesIn.Last())
                     {
                         synapse.Weight = Rnd.NextDouble(-.5, 0.0);
                     }

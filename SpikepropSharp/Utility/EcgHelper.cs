@@ -1,5 +1,6 @@
 ﻿using MatFileHandler;
 using SpikepropSharp.Components;
+using SpikepropSharp.Data;
 using System.Diagnostics;
 
 namespace SpikepropSharp.Utility
@@ -9,6 +10,8 @@ namespace SpikepropSharp.Utility
         // Data
         private const string DATA_DIR_PATH = "Data";
         private const int SAMPLE_INDEX = 0;
+        private const int DATASET_TRAIN_SIZE = 10;
+        private const int DATASET_VALIDATE_SIZE = 100;
         private const double SOD_SAMPLING_THRESHOLD = 0.5;
         private const double SPIKE_TIME_INPUT = 6;
         private const double SPIKE_TIME_TRUE = 10;
@@ -16,9 +19,10 @@ namespace SpikepropSharp.Utility
 
         // Network
         private const int INPUT_SIZE = 10;
+        private const int HIDDEN_SIZE = 10;
         private const int T_MAX = 40;
         private const int TRIALS = 1;
-        private const int EPOCHS = 100;
+        private const int EPOCHS = 1;
         private const int TEST_RUNS = 100;
         private const double TIMESTEP = 0.1;
         private const double LEARNING_RATE = 1e-2;
@@ -33,25 +37,6 @@ namespace SpikepropSharp.Utility
 
             double[] ecgSignalLabelsRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, $"ecg_{sampleIndex}_ann.mat"), "ann").ToArray();
             EcgSignalLabelsTrain = ConvertAnnotationTimestampsToLabels(ecgSignalLabelsRaw).ToArray();
-
-            /// <summary>
-            /// Loads a field of the specified matlab file.
-            /// Returns the first column of the specified field as the given type
-            /// </summary>
-            /// <param name="filePath">The path to the matlab file</param>
-            /// <param name="fieldName">The name of the data field within the matlab file</param>
-            /// <param name="scaleFactor">A factor to scale the matlab values with</param>
-            /// <typeparam name="T">The type of the data within the specified field</typeparam>
-            /// <returns></returns>
-            /// <exception cref="FormatException"></exception>
-            static double[] LoadMatlabEcgData(string filePath, string fieldName)
-            {
-                using FileStream fileStream = new(filePath, FileMode.Open);
-                MatFileReader reader = new(fileStream);
-                IMatFile matFile = reader.Read();
-
-                return matFile[fieldName].Value.ConvertToDoubleArray()!;
-            }
 
             /// <summary>
             /// Applies send-on-delta sampling on the given ecg signal and returns the resulting spikes.
@@ -91,7 +76,26 @@ namespace SpikepropSharp.Utility
             }
         }
 
-        private static Sample[] GetDataset(Random rnd, int datasetSize = 10)
+        /// <summary>
+        /// Loads a field of the specified matlab file.
+        /// Returns the first column of the specified field as the given type
+        /// </summary>
+        /// <param name="filePath">The path to the matlab file</param>
+        /// <param name="fieldName">The name of the data field within the matlab file</param>
+        /// <param name="scaleFactor">A factor to scale the matlab values with</param>
+        /// <typeparam name="T">The type of the data within the specified field</typeparam>
+        /// <returns></returns>
+        /// <exception cref="FormatException"></exception>
+        private static double[] LoadMatlabEcgData(string filePath, string fieldName)
+        {
+            using FileStream fileStream = new(filePath, FileMode.Open);
+            MatFileReader reader = new(fileStream);
+            IMatFile matFile = reader.Read();
+
+            return matFile[fieldName].Value.ConvertToDoubleArray()!;
+        }
+
+        private static Sample[] GetDataset(Random rnd, int datasetSize = DATASET_TRAIN_SIZE)
         {
             if (datasetSize % 2 != 0)
             {
@@ -160,6 +164,29 @@ namespace SpikepropSharp.Utility
             }
         }
 
+        private static Sample[] GetValidationDataset()
+        {
+            Sample[] dataset = new Sample[DATASET_VALIDATE_SIZE];
+            for (int i = 0; i < dataset.Length; i++)
+            {
+                int t = i * INPUT_SIZE;
+                List<double> input = new();
+                while (input.Count < INPUT_SIZE)
+                {
+                    input.Add(EcgSignalSpikesTrain.ContainsKey(t++) ? SPIKE_TIME_INPUT : 0);
+                }
+                // Bias
+                input.Add(0);
+
+
+                dataset[i] = new Sample(
+                    input: input,
+                    output: EcgSignalLabelsTrain.FirstOrDefault(l => l >= t && l < t + INPUT_SIZE) != default ? SPIKE_TIME_TRUE : SPIKE_TIME_FALSE);
+            }
+
+            return dataset;
+        }
+
         private static bool ConvertSpikeTimeToResult(double prediction) =>
             Math.Abs(prediction - SPIKE_TIME_TRUE) < Math.Abs(prediction - SPIKE_TIME_FALSE);
 
@@ -172,11 +199,16 @@ namespace SpikepropSharp.Utility
             }
             inputNeurons[^1] = "bias";
 
-            // {2 + 1, 5, 1}
+            string[] hiddenNeurons = new string[HIDDEN_SIZE];
+            for (int i = 0; i < hiddenNeurons.Length; i++)
+            {
+                hiddenNeurons[i] = $"hidden {i}";
+            }
+
             Network network = new(rnd);
             network.Create(
                 namesInput: inputNeurons,
-                namesHidden: new[] { "hidden 1", "hidden 2", "hidden 3", "hidden 4", "hidden 5" },
+                namesHidden: hiddenNeurons,
                 namesOutput: new[] { "output" }
             );
 
@@ -193,12 +225,13 @@ namespace SpikepropSharp.Utility
             double AvgNrOfEpochs = 0;
 
             // Multiple trials for statistics
+            Network[] networks = new Network[TRIALS];
             Parallel.For(0, TRIALS, new ParallelOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount }, trial =>
             {
                 ConsoleColor color = GetColorForIndex(trial);
 
-                Network network = CreateNetwork(rnd);
-                Neuron output_neuron = network.Layers[(int)Layer.Output].First();
+                networks[trial] = CreateNetwork(rnd);
+                Neuron output_neuron = networks[trial].Layers[(int)Layer.Output].First();
 
                 // Main training loop
                 for (int epoch = 0; epoch < EPOCHS; ++epoch)
@@ -209,9 +242,9 @@ namespace SpikepropSharp.Utility
                     double sumSquaredError = 0;
                     foreach (Sample sample in GetDataset(rnd))
                     {
-                        network.Clear();
-                        network.LoadSample(sample);
-                        network.Forward(T_MAX, TIMESTEP);
+                        networks[trial].Clear();
+                        networks[trial].LoadSample(sample);
+                        networks[trial].Forward(T_MAX, TIMESTEP);
                         if (output_neuron.Spikes.Count == 0)
                         {
                             Console.ForegroundColor = color;
@@ -223,7 +256,7 @@ namespace SpikepropSharp.Utility
                         sumSquaredError += 0.5 * Math.Pow(output_neuron.Spikes.First() - output_neuron.Clamped, 2);
 
                         // Backward propagation and changing weights (no batch-mode)
-                        foreach (List<Neuron> layer in network.Layers)
+                        foreach (List<Neuron> layer in networks[trial].Layers)
                         {
                             foreach (Neuron neuron in layer)
                             {
@@ -238,6 +271,7 @@ namespace SpikepropSharp.Utility
                     }
                     Console.ForegroundColor = color;
                     Console.WriteLine($"[T{trial}] ep:{epoch} er:{sumSquaredError} t:{sw.Elapsed:mm\\:ss}");
+                    networks[trial].CurrentError = sumSquaredError;
 
                     // Stopping criterion
                     if (sumSquaredError < 1.0)
@@ -248,16 +282,34 @@ namespace SpikepropSharp.Utility
 
                     if (runTestsInBetween && epoch % 2 == 0)
                     {
-                        Test(network, color, trial, epoch);
+                        Test(networks[trial], color, trial, epoch);
                     }
                 }
 
-                Test(network, color, trial, EPOCHS - 1);
+                Test(networks[trial], color, trial, EPOCHS - 1);
             });
 
             Console.Write("Average nr of epochs per trial: ");
             Console.WriteLine(AvgNrOfEpochs);
             Console.WriteLine("\n#############################################################################");
+
+            Console.WriteLine("Running validation tests ...");
+            Network bestNetwork = networks.OrderBy(network => network.CurrentError).First();
+            double[] eegRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, $"ecg_{SAMPLE_INDEX}.mat"), "signal");
+            double[] ecgLabelsRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, $"ecg_{SAMPLE_INDEX}_ann.mat"), "ann").ToArray();
+            ValidationResult result = new(eegRaw, ecgLabelsRaw, GetRange(EcgSignalSpikesTrain, 0, (DATASET_VALIDATE_SIZE + 1) * INPUT_SIZE));
+            int sampleI = 0;
+            foreach (Sample sample in GetValidationDataset())
+            {
+                double predictionRaw = bestNetwork.Predict(sample, T_MAX, TIMESTEP);
+                bool prediction = ConvertSpikeTimeToResult(predictionRaw);
+                bool label = ConvertSpikeTimeToResult(sample.Output);
+
+                result.Predictions.Add(new Prediction(sampleI * INPUT_SIZE, sampleI * INPUT_SIZE + INPUT_SIZE, prediction, label));
+                sampleI++;
+            }
+            result.Save();
+
             Console.WriteLine("Done");
             Console.ReadLine();
 
@@ -313,6 +365,9 @@ namespace SpikepropSharp.Utility
                 Console.WriteLine(cm.ToString());
                 Console.WriteLine("#############################################################################");
             }
+
+            Dictionary<double, bool> GetRange(Dictionary<double, bool> dict, int startIndex, int endIndex) =>
+                dict.OrderBy(d => d.Key).Skip(startIndex).Take(endIndex - startIndex + 1).ToDictionary(k => k.Key, v => v.Value);
         }
     }
 }
