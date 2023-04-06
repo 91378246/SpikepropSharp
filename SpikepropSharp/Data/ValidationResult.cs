@@ -7,13 +7,15 @@ namespace SpikepropSharp.Data
     {
         private const string PYTHON_PATH = @"C:\Users\janha\AppData\Local\Programs\Python\Python310\python.exe";
 
+        public double[] Errors { get; }
         public double[] EegRaw { get; }
         public double[] EegLabelsRaw { get; }
         public Dictionary<double, bool> EcgSignalSpikesTrain { get; }
         public List<Prediction> Predictions { get; }
 
-        public ValidationResult(double[] eegRaw, double[] eegLabelsRaw, Dictionary<double, bool> ecgSignalSpikesTrain)
+        public ValidationResult(double[] errors, double[] eegRaw, double[] eegLabelsRaw, Dictionary<double, bool> ecgSignalSpikesTrain)
         {
+            Errors = errors;
             EegRaw = eegRaw;
             EegLabelsRaw = eegLabelsRaw;
             EcgSignalSpikesTrain = ecgSignalSpikesTrain;

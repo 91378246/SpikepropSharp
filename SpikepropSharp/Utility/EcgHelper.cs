@@ -19,10 +19,10 @@ namespace SpikepropSharp.Utility
 
         // Network
         private const int INPUT_SIZE = 15;
-        private const int HIDDEN_SIZE = 10;
+        private const int HIDDEN_SIZE = 15;
         private const int T_MAX = 40;
         private const int TRIALS = 1;
-        private const int EPOCHS = 60;
+        private const int EPOCHS = 50;
         private const int TEST_RUNS = 100;
         private const double TIMESTEP = 0.1;
         private const double LEARNING_RATE = 1e-3;
@@ -226,11 +226,13 @@ namespace SpikepropSharp.Utility
 
             // Multiple trials for statistics
             Network[] networks = new Network[TRIALS];
+            Dictionary<Network, List<double>> errors = new();
             Parallel.For(0, TRIALS, new ParallelOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount }, trial =>
             {
                 ConsoleColor color = GetColorForIndex(trial);
 
                 networks[trial] = CreateNetwork(rnd);
+                errors[networks[trial]] = new List<double>();
                 Neuron output_neuron = networks[trial].Layers[(int)Layer.Output].First();
 
                 // Main training loop
@@ -272,6 +274,7 @@ namespace SpikepropSharp.Utility
                     Console.ForegroundColor = color;
                     Console.WriteLine($"[T{trial}] ep:{epoch} er:{sumSquaredError} t:{sw.Elapsed:mm\\:ss}");
                     networks[trial].CurrentError = sumSquaredError;
+                    errors[networks[trial]].Add(sumSquaredError);
 
                     // Stopping criterion
                     if (sumSquaredError < 1.0)
@@ -299,7 +302,7 @@ namespace SpikepropSharp.Utility
             double[] eegRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, $"ecg_{SAMPLE_INDEX}.mat"), "signal").ToArray()[..(int)lastTVal];
             double[] ecgLabelsRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, $"ecg_{SAMPLE_INDEX}_ann.mat"), "ann").Where(t => t < lastTVal).ToArray();
             Dictionary<double, bool> eegSignalsSpikeTrain = EcgSignalSpikesTrain.Where(kv => kv.Key <= lastTVal).ToDictionary(x => x.Key, x => x.Value);
-            ValidationResult result = new(eegRaw, ecgLabelsRaw, eegSignalsSpikeTrain);
+            ValidationResult result = new(errors[bestNetwork].ToArray(), eegRaw, ecgLabelsRaw, eegSignalsSpikeTrain);
             int sampleI = 0;
             foreach (Sample sample in GetValidationDataset())
             {

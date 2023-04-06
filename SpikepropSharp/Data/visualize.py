@@ -9,6 +9,12 @@ if __name__ == "__main__":
     file = open(file_path)
     data = json.load(file)
 
+    # Plot errors
+    plt.title("Squared error")
+    plt.xlabel("Epoch")
+    plt.ylabel("Error")
+    plt.plot(np.linspace(1, len(data["Errors"]), len(data["Errors"])), data["Errors"])
+
     t = np.arange(0, len(data["EegRaw"]), 1)
 
     # Plot graph with 2 y axes
@@ -43,6 +49,7 @@ if __name__ == "__main__":
                     Line2D([0], [0], color="g", lw=4),
                     Line2D([0], [0], color="b", lw=4)]
     plt.legend(custom_lines, ["EEG raw", "Labels", "Spikes pos/neg", "Prediction"])
+    plt.title("Validaiton result")
     plt.show()
 
     file.close()
