@@ -1,6 +1,6 @@
 ﻿namespace SpikepropSharp.Utility
 {
-    internal static class Extensions
+    public static class Extensions
     {
         public static double NextDouble(this Random rnd, double max) =>
             rnd.NextDouble(0, max);

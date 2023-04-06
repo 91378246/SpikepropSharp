@@ -1,9 +1,8 @@
 ﻿using SpikepropSharp.Components;
-using System;
 
 namespace SpikepropSharp.Utility
 {
-    internal static class XorHelper
+    public static class XorHelper
     {
         private const double SPIKE_TIME_INPUT = 6;
         private const double SPIKE_TIME_TRUE = 10;

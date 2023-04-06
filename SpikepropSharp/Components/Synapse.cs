@@ -1,6 +1,6 @@
 ﻿namespace SpikepropSharp.Components
 {
-    internal sealed class Synapse
+    public sealed class Synapse
     {
         public Neuron NeuronPre { get; }
         public double Weight { get; set; }

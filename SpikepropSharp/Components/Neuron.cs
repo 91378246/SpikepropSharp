@@ -1,6 +1,6 @@
 ﻿namespace SpikepropSharp.Components
 {
-    internal sealed class Neuron
+    public sealed class Neuron
     {
         private const double TAU_M = 4;
         private const double TAU_S = 2;

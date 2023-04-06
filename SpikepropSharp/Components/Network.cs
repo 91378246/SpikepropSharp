@@ -9,7 +9,7 @@ namespace SpikepropSharp.Components
         Output = 2
     }
 
-    internal class Network
+    public class Network
     {
         public List<Neuron>[] Layers { get; }
 
@@ -113,26 +113,32 @@ namespace SpikepropSharp.Components
             Layers[(int)Layer.Output][0].Clamped = sample.Output;
         }
 
-        public void Forward(double maxTime, double timestep)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="tMax">For how many timesteps to run this forward simulation</param>
+        /// <param name="timestep">For how much to increase t each time</param>
+        public void Forward(double tMax, double timestep)
         {
-            IEnumerable<Neuron> neuronsOutNoSpikes = Layers[(int)Layer.Output].Where(n => n.Spikes.Count == 0);
-            for (double time = 0.0; time < maxTime && neuronsOutNoSpikes.Any(); time += timestep)
+            bool NotAllOutputsSpiked() => Layers[(int)Layer.Output].Where(n => n.Spikes.Count == 0).Any();
+
+            for (double t = 0; t < tMax && NotAllOutputsSpiked(); t += timestep)
             {
                 foreach (List<Neuron> layer in Layers)
                 {
                     foreach (Neuron neuron in layer)
                     {
-                        neuron.Forward(time);
+                        neuron.Forward(t);
                     }
                 }
             }
         }
 
-        public double Predict(Sample sample, double maxTime, double timestep)
+        public double Predict(Sample sample, double tMax, double timestep)
         {
             Clear();
             LoadSample(sample);
-            Forward(maxTime, timestep);
+            Forward(tMax, timestep);
 
             return Layers[(int)Layer.Output].First().Spikes.FirstOrDefault();
         }

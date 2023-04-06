@@ -1,27 +1,32 @@
 ﻿using MatFileHandler;
 using SpikepropSharp.Components;
 using System.Diagnostics;
-using System.Drawing;
 
 namespace SpikepropSharp.Utility
 {
-    internal static class EcgHelper
+    public static class EcgHelper
     {
+        // Data
         private const string DATA_DIR_PATH = "Data";
-        private const int INPUT_TIME_SIZE = 10;
+        private const int SAMPLE_INDEX = 0;
+        private const double SOD_SAMPLING_THRESHOLD = 0.5;
         private const double SPIKE_TIME_INPUT = 6;
         private const double SPIKE_TIME_TRUE = 10;
         private const double SPIKE_TIME_FALSE = 16;
 
+        // Network
+        private const int INPUT_SIZE = 10;
+        private const int T_MAX = 30;
+
         private static double[] EcgSignalSpikesTrain { get; set; } = null!;
         private static double[] EcgSignalLabelsTrain { get; set; } = null!;
 
-        private static void LoadData()
+        private static void LoadData(int sampleIndex = SAMPLE_INDEX, double sodSamplingThreshold = SOD_SAMPLING_THRESHOLD)
         {
-            double[] ecgSignalRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, "ecg_0.mat"), "signal");
-            EcgSignalSpikesTrain = ApplySodSampling(ecgSignalRaw).ToArray();
+            double[] ecgSignalRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, $"ecg_{sampleIndex}.mat"), "signal");
+            EcgSignalSpikesTrain = ApplySodSampling(ecgSignalRaw, sodSamplingThreshold).ToArray();
 
-            double[] ecgSignalLabelsRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, "ecg_0_ann.mat"), "ann").ToArray();
+            double[] ecgSignalLabelsRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, $"ecg_{sampleIndex}_ann.mat"), "ann").ToArray();
             EcgSignalLabelsTrain = ConvertAnnotationTimestampsToLabels(ecgSignalLabelsRaw).ToArray();
 
             /// <summary>
@@ -49,7 +54,7 @@ namespace SpikepropSharp.Utility
             /// </summary>
             /// <param name="ecgSignal"></param>
             /// <param name="threshold"></param>
-            static List<double> ApplySodSampling(double[] ecgSignal, double threshold = 1)
+            static List<double> ApplySodSampling(double[] ecgSignal, double threshold)
             {
                 double yLevel = 0;
                 List<double> spikes = new();
@@ -86,53 +91,81 @@ namespace SpikepropSharp.Utility
             }
         }
 
-        private static List<Sample> GetDataset(Random rnd, int datasetSize = 5)
-        {          
-            List<Sample> dataset = new();
-            IEnumerable<int> randomIndices = Enumerable.Range(0, (int)EcgSignalSpikesTrain.Last() - INPUT_TIME_SIZE)
-                               .OrderBy(i => rnd.Next())
-                               .Take(datasetSize);
-            // IEnumerable<int> randomIndices = Enumerable.Range(0, datasetSize * INPUT_TIME_SIZE);
-            foreach (int startT in randomIndices)
+        private static Sample[] GetDataset(Random rnd, int datasetSize = 6)
+        {
+            if (datasetSize % 2 != 0)
             {
-                int t = startT;
-                List<double> input = new();
-                while (input.Count < INPUT_TIME_SIZE)
-                {
-                    input.Add(EcgSignalSpikesTrain.Contains(t++) ? SPIKE_TIME_INPUT : 0);
-                }
-                // Bias
-                input.Add(0);
-
-                double label = EcgSignalLabelsTrain.Any(l => l >= startT && l < t) ? SPIKE_TIME_TRUE : SPIKE_TIME_FALSE;
-                dataset.Add(new Sample(input, label));
+                throw new ArgumentException("DatasetSize has to be even", nameof(datasetSize));
             }
 
-            // Force at least one TP dataset
-            if (!dataset.Any(d => d.Output == SPIKE_TIME_TRUE))
+            Sample[] dataset = new Sample[datasetSize];
+            for (int i = 0; i < dataset.Length; i++)
             {
+                int t = 0;
+                bool sampleIsTrue = i % 2 == 0;
+
                 // Get a random label timestamp
-                double labelT = EcgSignalLabelsTrain[rnd.Next(EcgSignalLabelsTrain.Length)];
-                int t = (int)labelT - rnd.Next(INPUT_TIME_SIZE / 2);
+                if (sampleIsTrue)
+                {
+                    // Get a random label time
+                    double labelT = EcgSignalLabelsTrain[rnd.Next(EcgSignalLabelsTrain.Length)];
+
+                    // Set t to be equal or less than labelT
+                    t = (int)labelT - rnd.Next(rnd.Next(INPUT_SIZE / 2));
+                }
+                // Get a random non label timestamp
+                else
+                {
+                    while (t == 0)
+                    {
+                        // Get a random input time
+                        t = rnd.Next((int)EcgSignalSpikesTrain.Last() - INPUT_SIZE);
+
+                        // Set t to be equal or less than that input time
+                        t -= rnd.Next(rnd.Next(INPUT_SIZE / 2));
+
+                        // Make sure the sample isn't true
+                        if (EcgSignalLabelsTrain.FirstOrDefault(l => l >= t && l < t + INPUT_SIZE) != default)
+                        {
+                            t = 0;
+                        }
+                    }
+                }
+
+                // Get the input
                 List<double> input = new();
-                while (input.Count < INPUT_TIME_SIZE)
+                while (input.Count < INPUT_SIZE)
                 {
                     input.Add(EcgSignalSpikesTrain.Contains(t++) ? SPIKE_TIME_INPUT : 0);
                 }
                 // Bias
                 input.Add(0);
-                dataset[^1] = new Sample(input, SPIKE_TIME_TRUE);
+
+                dataset[i] = new Sample(input, sampleIsTrue ? SPIKE_TIME_TRUE : SPIKE_TIME_FALSE);
             }
 
-            return dataset;          
+            Shuffle(rnd, dataset);
+            return dataset;
+
+            static T[] Shuffle<T>(Random rnd, T[] array)
+            {
+                int n = array.Length;
+                while (n > 1)
+                {
+                    int k = rnd.Next(n--);
+                    (array[k], array[n]) = (array[n], array[k]);
+                }
+
+                return array;
+            }
         }
 
-        private static bool ConvertSpikeTimeToResult(double prediction) => 
+        private static bool ConvertSpikeTimeToResult(double prediction) =>
             Math.Abs(prediction - SPIKE_TIME_TRUE) < Math.Abs(prediction - SPIKE_TIME_FALSE);
 
         private static Network CreateNetwork(Random rnd)
         {
-            string[] inputNeurons = new string[INPUT_TIME_SIZE + 1];
+            string[] inputNeurons = new string[INPUT_SIZE + 1];
             for (int i = 0; i < inputNeurons.Length - 1; i++)
             {
                 inputNeurons[i] = $"input {i}";
@@ -150,7 +183,7 @@ namespace SpikepropSharp.Utility
             return network;
         }
 
-        public static void RunTest(Random rnd, int trials, int epochs, int testRuns, double maxTime, double timestep, double learningRate)
+        public static void RunTest(Random rnd, int trials, int epochs, int testRuns, double timestep, double learningRate)
         {
             Console.WriteLine("Loading data...");
             LoadData();
@@ -177,7 +210,7 @@ namespace SpikepropSharp.Utility
                     {
                         network.Clear();
                         network.LoadSample(sample);
-                        network.Forward(maxTime, timestep);
+                        network.Forward(T_MAX, timestep);
                         if (output_neuron.Spikes.Count == 0)
                         {
                             Console.ForegroundColor = color;
@@ -228,7 +261,7 @@ namespace SpikepropSharp.Utility
             Console.ReadLine();
 
             static ConsoleColor GetColorForIndex(int i) =>
-                (ConsoleColor)Enum.GetValues(typeof(ConsoleColor)).GetValue(i + 1);
+                (ConsoleColor)Enum.GetValues(typeof(ConsoleColor)).GetValue(i + 1)!;
 
             void Test(Network network, ConsoleColor color, int trial, int epoch)
             {
@@ -240,7 +273,7 @@ namespace SpikepropSharp.Utility
                 {
                     foreach (Sample sample in GetDataset(rnd))
                     {
-                        double predictionRaw = network.Predict(sample, maxTime, timestep);
+                        double predictionRaw = network.Predict(sample, T_MAX, timestep);
                         bool prediction = ConvertSpikeTimeToResult(predictionRaw);
                         bool label = ConvertSpikeTimeToResult(sample.Output);
 
