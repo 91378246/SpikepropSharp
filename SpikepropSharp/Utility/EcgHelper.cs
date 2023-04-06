@@ -11,21 +11,21 @@ namespace SpikepropSharp.Utility
         private const string DATA_DIR_PATH = "Data";
         private const int SAMPLE_INDEX = 0;
         private const int DATASET_TRAIN_SIZE = 10;
-        private const int DATASET_VALIDATE_SIZE = 100;
+        private const int DATASET_VALIDATE_SIZE = 1000;
         private const double SOD_SAMPLING_THRESHOLD = 0.5;
         private const double SPIKE_TIME_INPUT = 6;
         private const double SPIKE_TIME_TRUE = 10;
         private const double SPIKE_TIME_FALSE = 16;
 
         // Network
-        private const int INPUT_SIZE = 10;
+        private const int INPUT_SIZE = 15;
         private const int HIDDEN_SIZE = 10;
         private const int T_MAX = 40;
         private const int TRIALS = 1;
-        private const int EPOCHS = 1;
+        private const int EPOCHS = 60;
         private const int TEST_RUNS = 100;
         private const double TIMESTEP = 0.1;
-        private const double LEARNING_RATE = 1e-2;
+        private const double LEARNING_RATE = 1e-3;
 
         private static Dictionary<double, bool> EcgSignalSpikesTrain { get; set; } = null!;
         private static double[] EcgSignalLabelsTrain { get; set; } = null!;
@@ -106,7 +106,7 @@ namespace SpikepropSharp.Utility
             for (int i = 0; i < dataset.Length; i++)
             {
                 int t = 0;
-                bool sampleIsTrue = i % 2 == 0;
+                bool sampleIsTrue = i == 0;
 
                 // Get a random label timestamp
                 if (sampleIsTrue)
@@ -295,9 +295,11 @@ namespace SpikepropSharp.Utility
 
             Console.WriteLine("Running validation tests ...");
             Network bestNetwork = networks.OrderBy(network => network.CurrentError).First();
-            double[] eegRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, $"ecg_{SAMPLE_INDEX}.mat"), "signal");
-            double[] ecgLabelsRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, $"ecg_{SAMPLE_INDEX}_ann.mat"), "ann").ToArray();
-            ValidationResult result = new(eegRaw, ecgLabelsRaw, GetRange(EcgSignalSpikesTrain, 0, (DATASET_VALIDATE_SIZE + 1) * INPUT_SIZE));
+            double lastTVal = (DATASET_VALIDATE_SIZE + 1) * INPUT_SIZE;
+            double[] eegRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, $"ecg_{SAMPLE_INDEX}.mat"), "signal").ToArray()[..(int)lastTVal];
+            double[] ecgLabelsRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, $"ecg_{SAMPLE_INDEX}_ann.mat"), "ann").Where(t => t < lastTVal).ToArray();
+            Dictionary<double, bool> eegSignalsSpikeTrain = EcgSignalSpikesTrain.Where(kv => kv.Key <= lastTVal).ToDictionary(x => x.Key, x => x.Value);
+            ValidationResult result = new(eegRaw, ecgLabelsRaw, eegSignalsSpikeTrain);
             int sampleI = 0;
             foreach (Sample sample in GetValidationDataset())
             {
@@ -308,7 +310,7 @@ namespace SpikepropSharp.Utility
                 result.Predictions.Add(new Prediction(sampleI * INPUT_SIZE, sampleI * INPUT_SIZE + INPUT_SIZE, prediction, label));
                 sampleI++;
             }
-            result.Save();
+            result.Save(plot: true);
 
             Console.WriteLine("Done");
             Console.ReadLine();
