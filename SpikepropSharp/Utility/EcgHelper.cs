@@ -18,14 +18,14 @@ namespace SpikepropSharp.Utility
         private const double SPIKE_TIME_FALSE = 16;
 
         // Network
-        private const int INPUT_SIZE = 15;
-        private const int HIDDEN_SIZE = 15;
-        private const int T_MAX = 40;
+        private const int INPUT_SIZE = 10;
+        private const int HIDDEN_SIZE = 10;
+        private const int T_MAX = 30;
         private const int TRIALS = 1;
-        private const int EPOCHS = 50;
+        private const int EPOCHS = 100;
         private const int TEST_RUNS = 100;
         private const double TIMESTEP = 0.1;
-        private const double LEARNING_RATE = 1e-3;
+        private const double LEARNING_RATE = 1e-2;
 
         private static Dictionary<double, bool> EcgSignalSpikesTrain { get; set; } = null!;
         private static double[] EcgSignalLabelsTrain { get; set; } = null!;
@@ -106,7 +106,7 @@ namespace SpikepropSharp.Utility
             for (int i = 0; i < dataset.Length; i++)
             {
                 int t = 0;
-                bool sampleIsTrue = i == 0;
+                bool sampleIsTrue = i < 3;
 
                 // Get a random label timestamp
                 if (sampleIsTrue)
@@ -215,7 +215,7 @@ namespace SpikepropSharp.Utility
             return network;
         }
 
-        public static void RunTest(Random rnd, bool runTestsInBetween = false)
+        public static void RunTest(Random rnd, bool runTestsInBetween = false, bool loadPrevWeights = false)
         {
             Console.WriteLine("Loading data...");
             LoadData();
@@ -234,6 +234,15 @@ namespace SpikepropSharp.Utility
                 networks[trial] = CreateNetwork(rnd);
                 errors[networks[trial]] = new List<double>();
                 Neuron output_neuron = networks[trial].Layers[(int)Layer.Output].First();
+                double lowestError = double.MaxValue;
+
+                // Load a prev saved one
+                string prevWeightsAndDelaysFile = $"network_{trial}_070423.json";
+                if (loadPrevWeights && File.Exists(prevWeightsAndDelaysFile))
+                {
+                    networks[trial].LoadWeightsAndDelays(prevWeightsAndDelaysFile);
+                    Console.WriteLine($"[T{trial}] loaded weights and delays from {prevWeightsAndDelaysFile}");
+                }
 
                 // Main training loop
                 for (int epoch = 0; epoch < EPOCHS; ++epoch)
@@ -257,7 +266,7 @@ namespace SpikepropSharp.Utility
                         }
                         sumSquaredError += 0.5 * Math.Pow(output_neuron.Spikes.First() - output_neuron.Clamped, 2);
 
-                        // Backward propagation and changing weights (no batch-mode)
+                        // Backward propagation
                         foreach (List<Neuron> layer in networks[trial].Layers)
                         {
                             foreach (Neuron neuron in layer)
@@ -276,6 +285,11 @@ namespace SpikepropSharp.Utility
                     networks[trial].CurrentError = sumSquaredError;
                     errors[networks[trial]].Add(sumSquaredError);
 
+                    if (sumSquaredError < lowestError)
+                    {
+                        networks[trial].SaveWeightsAndDelays($"network_{trial}_{DateTime.Now:ddMMyy}.json");
+                    }
+
                     // Stopping criterion
                     if (sumSquaredError < 1.0)
                     {
@@ -287,6 +301,11 @@ namespace SpikepropSharp.Utility
                     {
                         Test(networks[trial], color, trial, epoch);
                     }
+
+                    if (epoch % 10 == 0)
+                    {
+                        Validate(networks[trial]);
+                    }
                 }
 
                 Test(networks[trial], color, trial, EPOCHS - 1);
@@ -296,24 +315,8 @@ namespace SpikepropSharp.Utility
             Console.WriteLine(AvgNrOfEpochs);
             Console.WriteLine("\n#############################################################################");
 
-            Console.WriteLine("Running validation tests ...");
             Network bestNetwork = networks.OrderBy(network => network.CurrentError).First();
-            double lastTVal = (DATASET_VALIDATE_SIZE + 1) * INPUT_SIZE;
-            double[] eegRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, $"ecg_{SAMPLE_INDEX}.mat"), "signal").ToArray()[..(int)lastTVal];
-            double[] ecgLabelsRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, $"ecg_{SAMPLE_INDEX}_ann.mat"), "ann").Where(t => t < lastTVal).ToArray();
-            Dictionary<double, bool> eegSignalsSpikeTrain = EcgSignalSpikesTrain.Where(kv => kv.Key <= lastTVal).ToDictionary(x => x.Key, x => x.Value);
-            ValidationResult result = new(errors[bestNetwork].ToArray(), eegRaw, ecgLabelsRaw, eegSignalsSpikeTrain);
-            int sampleI = 0;
-            foreach (Sample sample in GetValidationDataset())
-            {
-                double predictionRaw = bestNetwork.Predict(sample, T_MAX, TIMESTEP);
-                bool prediction = ConvertSpikeTimeToResult(predictionRaw);
-                bool label = ConvertSpikeTimeToResult(sample.Output);
-
-                result.Predictions.Add(new Prediction(sampleI * INPUT_SIZE, sampleI * INPUT_SIZE + INPUT_SIZE, prediction, label));
-                sampleI++;
-            }
-            result.Save(plot: true);
+            Validate(bestNetwork);
 
             Console.WriteLine("Done");
             Console.ReadLine();
@@ -373,6 +376,27 @@ namespace SpikepropSharp.Utility
 
             Dictionary<double, bool> GetRange(Dictionary<double, bool> dict, int startIndex, int endIndex) =>
                 dict.OrderBy(d => d.Key).Skip(startIndex).Take(endIndex - startIndex + 1).ToDictionary(k => k.Key, v => v.Value);
+
+            void Validate(Network bestNetwork)
+            {
+                Console.WriteLine("Validating ... ");
+                double lastTVal = (DATASET_VALIDATE_SIZE + 1) * INPUT_SIZE;
+                double[] eegRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, $"ecg_{SAMPLE_INDEX}.mat"), "signal").ToArray()[..(int)lastTVal];
+                double[] ecgLabelsRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, $"ecg_{SAMPLE_INDEX}_ann.mat"), "ann").Where(t => t < lastTVal).ToArray();
+                Dictionary<double, bool> eegSignalsSpikeTrain = EcgSignalSpikesTrain.Where(kv => kv.Key <= lastTVal).ToDictionary(x => x.Key, x => x.Value);
+                ValidationResult result = new(errors[bestNetwork].ToArray(), eegRaw, ecgLabelsRaw, eegSignalsSpikeTrain);
+                int sampleI = 0;
+                foreach (Sample sample in GetValidationDataset())
+                {
+                    double predictionRaw = bestNetwork.Predict(sample, T_MAX, TIMESTEP);
+                    bool prediction = ConvertSpikeTimeToResult(predictionRaw);
+                    bool label = ConvertSpikeTimeToResult(sample.Output);
+
+                    result.Predictions.Add(new Prediction(sampleI * INPUT_SIZE, sampleI * INPUT_SIZE + INPUT_SIZE, prediction, label));
+                    sampleI++;
+                }
+                result.Save(plot: true);
+            }
         }
     }
 }

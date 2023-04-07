@@ -5,7 +5,7 @@ namespace SpikepropSharp.Data
 {
     public sealed class ValidationResult
     {
-        private const string PYTHON_PATH = @"C:\Users\janha\AppData\Local\Programs\Python\Python310\python.exe";
+        private const string PYTHON_PATH = @"C:\Users\janha\AppData\Local\Programs\Python\Python311\python.exe";
 
         public double[] Errors { get; }
         public double[] EegRaw { get; }

@@ -1,4 +1,5 @@
 ﻿using SpikepropSharp.Utility;
+using System.Text.Json;
 
 namespace SpikepropSharp.Components
 {
@@ -9,9 +10,9 @@ namespace SpikepropSharp.Components
         Output = 2
     }
 
-    public class Network
+    public sealed class Network
     {
-        public List<Neuron>[] Layers { get; }
+        public List<Neuron>[] Layers { get; private set; }
         public double CurrentError { get; set; } = double.MaxValue;
 
         private Random Rnd { get; }
@@ -142,6 +143,44 @@ namespace SpikepropSharp.Components
             Forward(tMax, timestep);
 
             return Layers[(int)Layer.Output].First().Spikes.FirstOrDefault();
+        }
+
+        public void SaveWeightsAndDelays(string path)
+        {
+            List<double> weights = new();
+            List<double> delays = new();
+
+            foreach (List<Neuron> layer in Layers)
+            {
+                foreach (Neuron neuron in layer)
+                {
+                    foreach (Synapse synapse in neuron.SynapsesIn)
+                    {
+                        weights.Add(synapse.Weight);
+                        delays.Add(synapse.Delay);
+                    }
+                }
+            }
+
+            File.WriteAllText(path, JsonSerializer.Serialize(new List<double>[] { weights, delays }));
+        }
+
+        public void LoadWeightsAndDelays(string path)
+        {
+            List<double>[] weightsAndDelays = JsonSerializer.Deserialize<List<double>[]>(File.ReadAllText(path))!;
+            int synI = 0;
+            foreach (List<Neuron> layer in Layers)
+            {
+                foreach (Neuron neuron in layer)
+                {
+                    foreach (Synapse synapse in neuron.SynapsesIn)
+                    {
+                        synapse.Weight = weightsAndDelays[0][synI];
+                        synapse.Delay = weightsAndDelays[1][synI];
+                        synI++;
+                    }
+                }
+            }
         }
     }
 }
