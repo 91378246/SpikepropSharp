@@ -22,13 +22,13 @@ if __name__ == "__main__":
 
     # Bars
     # Labels raw
-    ax1.bar(data["EegLabelsRaw"], len(data["EegLabelsRaw"]) * [1], width=3, color="r")
+    ax1.bar(data["EegLabelsRaw"], len(data["EegLabelsRaw"]) * [1], width=5, color="r")
     # Spikes pos
     spikes_pos = [float(k) for k in data["EcgSignalSpikesTrain"] if data["EcgSignalSpikesTrain"][k]]
-    ax1.bar(spikes_pos, len(spikes_pos) * [1], width=3, color="g")
+    ax1.bar(spikes_pos, len(spikes_pos) * [1], width=5, color="g")
     # Spikes neg
     spikes_neg = [float(k) for k in data["EcgSignalSpikesTrain"] if not data["EcgSignalSpikesTrain"][k]]
-    ax1.bar(spikes_neg, len(spikes_neg) * [-1], width=3, color="g")
+    ax1.bar(spikes_neg, len(spikes_neg) * [-1], width=5, color="g")
     # Predictions
     predictionSpan = data["Predictions"][0]["TEnd"]
     predictions_true = [p["TStart"] for p in data["Predictions"] if p["PredictionResult"]]

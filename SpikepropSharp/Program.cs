@@ -2,6 +2,6 @@
 
 Random rnd = new(1);
 
-// XorHelper.RunTest(rnd);
+//XorHelper.RunTest(rnd);
 EcgHelper.RunTest(rnd);
 
