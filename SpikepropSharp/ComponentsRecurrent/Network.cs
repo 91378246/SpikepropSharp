@@ -227,12 +227,12 @@ namespace SpikepropSharp.ComponentsRecurrent
 
         public void LoadSample(Sample sample)
         {
-            if (sample.Input.Count != Layers[(int)Layer.Input].Count)
+            if (sample.Input.Length != Layers[(int)Layer.Input].Count)
             {
-                throw new ArgumentException($"Invalid sample input count {sample.Input.Count}, expected {Layers[(int)Layer.Input].Count - 1}");
+                throw new ArgumentException($"Invalid sample input count {sample.Input.Length}, expected {Layers[(int)Layer.Input].Count - 1}");
             }
 
-            for (int i = 0; i < sample.Input.Count; i++)
+            for (int i = 0; i < sample.Input.Length; i++)
             {
                 //Layers[(int)Layer.Input][i].Fire(sample.Input[i]);
             }

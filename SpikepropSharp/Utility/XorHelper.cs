@@ -21,10 +21,10 @@ namespace SpikepropSharp.Utility
         /// <returns></returns>
         private static List<Sample> GetDataset() => new()
         {
-            new Sample(new List<double>() { 0, 0, 0 }, SPIKE_TIME_FALSE), // 0
-            new Sample(new List<double>() { 0, SPIKE_TIME_INPUT, 0 }, SPIKE_TIME_TRUE), // 1
-            new Sample(new List<double>() { SPIKE_TIME_INPUT, 0, 0 }, SPIKE_TIME_TRUE), // 1
-            new Sample(new List<double>() { SPIKE_TIME_INPUT, SPIKE_TIME_INPUT, 0 }, SPIKE_TIME_FALSE)  // 0
+            new Sample(new double[] { 0, 0, 0 }, SPIKE_TIME_FALSE), // 0
+            new Sample(new double[] { 0, SPIKE_TIME_INPUT, 0 }, SPIKE_TIME_TRUE), // 1
+            new Sample(new double[] { SPIKE_TIME_INPUT, 0, 0 }, SPIKE_TIME_TRUE), // 1
+            new Sample(new double[] { SPIKE_TIME_INPUT, SPIKE_TIME_INPUT, 0 }, SPIKE_TIME_FALSE)  // 0
         };
 
         private static bool ConvertSpikeTimeToResult(double prediction) =>
@@ -78,7 +78,7 @@ namespace SpikepropSharp.Utility
                         sumSquaredError += 0.5 * Math.Pow(output_neuron.Spikes.First() - output_neuron.Clamped, 2);
 
                         // Backward propagation and changing weights (no batch-mode)
-                        foreach (List<Neuron> layer in network.Layers)
+                        foreach (Neuron[] layer in network.Layers)
                         {
                             foreach (Neuron neuron in layer)
                             {

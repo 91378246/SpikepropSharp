@@ -18,7 +18,7 @@ namespace SpikepropSharp.Utility
         private const double SPIKE_TIME_FALSE = 16;
 
         // Network
-        private const int INPUT_SIZE = 100;
+        private const int INPUT_SIZE = 50;
         private const int HIDDEN_SIZE = 5;
         private const int T_MAX = 40;
         private const int TRIALS = 1;
@@ -235,7 +235,7 @@ namespace SpikepropSharp.Utility
 
                 networks[trial] = CreateNetwork(rnd);
                 errors[networks[trial]] = new List<double>();
-                Neuron output_neuron = networks[trial].Layers[(int)Layer.Output].First();
+                Neuron output_neuron = networks[trial].Layers[(int)Layer.Output][0];
                 double lowestError = double.MaxValue;
 
                 // Load a prev saved one
@@ -256,11 +256,10 @@ namespace SpikepropSharp.Utility
                     Sample[] samples = GetDataset(rnd);
                     for (int sampleI = 0; sampleI < samples.Length; sampleI++)
                     {
-                        Sample sample = samples[sampleI];
                         Debug.WriteLine($"Processing sample {++sampleI}/{DATASET_TRAIN_SIZE}");
 
                         networks[trial].Clear();
-                        networks[trial].LoadSample(sample);
+                        networks[trial].LoadSample(samples[sampleI]);
                         networks[trial].Forward(T_MAX, TIMESTEP);
                         if (output_neuron.Spikes.Count == 0)
                         {
@@ -270,7 +269,7 @@ namespace SpikepropSharp.Utility
                             sumSquaredError = epoch = (int)1e9;
                             break;
                         }
-                        sumSquaredError += 0.5 * Math.Pow(output_neuron.Spikes.First() - output_neuron.Clamped, 2);
+                        sumSquaredError += 0.5 * Math.Pow(output_neuron.Spikes[0] - output_neuron.Clamped, 2);
 
                         // Backward propagation
                         for (int l = 0; l < networks[trial].Layers.Length; l++)
@@ -338,11 +337,12 @@ namespace SpikepropSharp.Utility
                 ConfusionMatrix cm = new();
                 for (int testRun = 0; testRun < TEST_RUNS; testRun++)
                 {
-                    foreach (Sample sample in GetDataset(rnd))
+                    Sample[] samples = GetDataset(rnd);
+                    for (int sampleI = 0; sampleI < samples.Length; sampleI++)
                     {
-                        double predictionRaw = network.Predict(sample, T_MAX, TIMESTEP);
+                        double predictionRaw = network.Predict(samples[sampleI], T_MAX, TIMESTEP);
                         bool prediction = ConvertSpikeTimeToResult(predictionRaw);
-                        bool label = ConvertSpikeTimeToResult(sample.Output);
+                        bool label = ConvertSpikeTimeToResult(samples[sampleI].Output);
 
                         if (prediction)
                         {

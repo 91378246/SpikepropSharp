@@ -79,9 +79,9 @@ namespace SpikepropSharp.Components
                     }
                 }
 
-                foreach (Synapse synapse in Layers[(int)Layer.Output].First().SynapsesIn)
+                foreach (Synapse synapse in Layers[(int)Layer.Output][0].SynapsesIn)
                 {
-                    if (synapse == Layers[(int)Layer.Output].First().SynapsesIn.Last())
+                    if (synapse == Layers[(int)Layer.Output][0].SynapsesIn.Last())
                     {
                         synapse.Weight = Rnd.NextDouble(-0.5, 0);
                     }
@@ -146,7 +146,7 @@ namespace SpikepropSharp.Components
             LoadSample(sample);
             Forward(tMax, timestep);
 
-            return Layers[(int)Layer.Output].First().Spikes.FirstOrDefault();
+            return Layers[(int)Layer.Output][0].Spikes.FirstOrDefault();
         }
 
         public void SaveWeightsAndDelays(string path)

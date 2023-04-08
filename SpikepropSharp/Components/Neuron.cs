@@ -11,7 +11,7 @@
         public double Clamped { get; set; }
         public Synapse[] SynapsesIn { get; set; } = Array.Empty<Synapse>();
         public Neuron[] NeuronsPost { get; set; } = Array.Empty<Neuron>();
-        public List<double> Spikes { get; set; } // Eq (1)
+        public List<double> Spikes { get; set; } = new(); // Eq (1)
 
         public Neuron(string name = "neuron")
         {
@@ -44,17 +44,19 @@
         public double ComputeU(double time) // Eq (3)
         {
             double u = 0;
-            foreach (Synapse synapseIn in SynapsesIn)
+            // Foreach syn in
+            for (int synI = 0; synI < SynapsesIn.Length; synI++)
             {
-                foreach (double spikePre in synapseIn.NeuronPre.Spikes)
+                // Foreach spike of the pre neuron of the syn in
+                for (int spikeI = 0; spikeI < SynapsesIn[synI].NeuronPre.Spikes.Count; spikeI++)
                 {
-                    u += synapseIn.Weight * Epsilon(time - spikePre - synapseIn.Delay);
+                    u += SynapsesIn[synI].Weight * Epsilon(time - SynapsesIn[synI].NeuronPre.Spikes[spikeI] - SynapsesIn[synI].Delay);
                 }
             }
 
-            foreach (double spike in Spikes)
+            for (int spikeI = 0; spikeI < Spikes.Count; spikeI++)
             {
-                u += Eta(time - spike);
+                u += Eta(time - Spikes[spikeI]);
             }
 
             return u;
@@ -62,11 +64,13 @@
 
         public void ComputeDeltaWeights(double learningRate) // Eq (9)
         {
-            foreach (Synapse synapse in SynapsesIn)
+            // Foreach syn in
+            for (int synI = 0; synI < SynapsesIn.Length; synI++)
             {
-                foreach (double spikeThis in Spikes)
+                // Foreach spike from this neuron
+                for (int spikeI = 0; spikeI < Spikes.Count; spikeI++)
                 {
-                    synapse.WeightDelta -= learningRate * ComputeDeDt(spikeThis) * ComputeDtDw(synapse, spikeThis);
+                    SynapsesIn[synI].WeightDelta -= learningRate * ComputeDeDt(Spikes[spikeI]) * ComputeDtDw(SynapsesIn[synI], Spikes[spikeI]);
                 }
             }
         }
@@ -79,16 +83,18 @@
         public double ComputeDuDw(Synapse synapse, double spikeThis) // Eq (11)
         {
             double duDw = 0.0;
-            foreach (double spikePre in synapse.NeuronPre.Spikes)
+            // Foreach spike from the pre neuron of the syn
+            for (int spikeI = 0; spikeI < synapse.NeuronPre.Spikes.Count; spikeI++)
             {
-                duDw += Epsilon(spikeThis - spikePre - synapse.Delay);
+                duDw += Epsilon(spikeThis - synapse.NeuronPre.Spikes[spikeI] - synapse.Delay);
             }
 
-            foreach (double spikeRef in Spikes)
+            // Foreach spike from this neuron
+            for (int spikeI = 0; spikeI < Spikes.Count; spikeI++)
             {
-                if (spikeRef < spikeThis)
+                if (Spikes[spikeI] < spikeThis)
                 {
-                    duDw += -Etad(spikeThis - spikeRef) * ComputeDtDw(synapse, spikeRef);
+                    duDw += -Etad(spikeThis - Spikes[spikeI]) * ComputeDtDw(synapse, Spikes[spikeI]);
                 }
             }
 
@@ -97,19 +103,22 @@
         public double ComputeDuDt(double spikeThis) // Eq (12)
         {
             double duDt = 0.0;
-            foreach (Synapse synapse in SynapsesIn)
+            // Foreach syn in
+            for (int synI = 0; synI < SynapsesIn.Length; synI++)
             {
-                foreach (double spikePre in synapse.NeuronPre.Spikes)
+                // Foreach spike of the pre neuron of the syn in
+                for (int spikeI = 0; spikeI < SynapsesIn[synI].NeuronPre.Spikes.Count; spikeI++)
                 {
-                    duDt += synapse.Weight * Epsilond(spikeThis - spikePre - synapse.Delay);
+                    duDt += SynapsesIn[synI].Weight * Epsilond(spikeThis - SynapsesIn[synI].NeuronPre.Spikes[spikeI] - SynapsesIn[synI].Delay);
                 }
             }
 
-            foreach (double spikeRef in Spikes)
+            // Foreach spike from this neuron
+            for (int spikeI = 0; spikeI < Spikes.Count; spikeI++)
             {
-                if (spikeRef < spikeThis)
+                if (Spikes[spikeI] < spikeThis)
                 {
-                    duDt += Etad(spikeThis - spikeRef);
+                    duDt += Etad(spikeThis - Spikes[spikeI]);
                 }
             }
 
@@ -117,6 +126,7 @@
             {
                 duDt = 0.1;
             }
+
             return duDt;
         }
 
@@ -131,13 +141,15 @@
             }
 
             double deDt = 0.0;
-            foreach (Neuron neuronPost in NeuronsPost)
+            // Foreach neuron post
+            for (int neuronI = 0; neuronI < NeuronsPost.Length; neuronI++)
             {
-                foreach (double spikePost in neuronPost.Spikes)
+                // Forach spike of thaht neuron post
+                for (int spikeI = 0; spikeI < NeuronsPost[neuronI].Spikes.Count; spikeI++)
                 {
-                    if (spikePost > spikeThis)
+                    if (NeuronsPost[neuronI].Spikes[spikeI] > spikeThis)
                     {
-                        deDt += neuronPost.ComputeDeDt(spikePost) * ComputeDposttDt(spikeThis, neuronPost, spikePost);
+                        deDt += NeuronsPost[neuronI].ComputeDeDt(NeuronsPost[neuronI].Spikes[spikeI]) * ComputeDposttDt(spikeThis, NeuronsPost[neuronI], NeuronsPost[neuronI].Spikes[spikeI]);
                     }
                 }
             }
@@ -152,19 +164,21 @@
         public double ComputeDpostuDt(double spikeThis, Neuron neuronPost, double spikePost) // Eq (15)
         {
             double dpostuDt = 0.0;
-            foreach (Synapse synapse in neuronPost.SynapsesIn)
+            // Foreach syn in of the given neuron post
+            for (int synI = 0; synI < neuronPost.SynapsesIn.Length; synI++)
             {
-                if (synapse.NeuronPre == this)
+                if (neuronPost.SynapsesIn[synI].NeuronPre == this)
                 {
-                    dpostuDt -= synapse.Weight * Epsilond(spikePost - spikeThis - synapse.Delay);
+                    dpostuDt -= neuronPost.SynapsesIn[synI].Weight * Epsilond(spikePost - spikeThis - neuronPost.SynapsesIn[synI].Delay);
                 }
             }
 
-            foreach (double spikeRef in neuronPost.Spikes)
+            // Foreach spike from the given neuron post
+            for (int spikeI = 0; spikeI < neuronPost.Spikes.Count; spikeI++)
             {
-                if (spikeRef < spikePost)
+                if (neuronPost.Spikes[spikeI] < spikePost)
                 {
-                    dpostuDt -= Etad(spikePost - spikeRef) * ComputeDposttDt(spikeThis, neuronPost, spikeRef);
+                    dpostuDt -= Etad(spikePost - neuronPost.Spikes[spikeI]) * ComputeDposttDt(spikeThis, neuronPost, neuronPost.Spikes[spikeI]);
                 }
             }
             return dpostuDt;

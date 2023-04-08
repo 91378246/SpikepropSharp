@@ -152,7 +152,7 @@ namespace SpikepropSharp.Utility
                 input.Add(0);
 
                 bool sampleIsTrue = EcgSignalLabelsTrain.FirstOrDefault(l => l >= t - INPUT_SIZE && l < t) != default;
-                dataset[i] = new Sample(input, sampleIsTrue ? SPIKE_TIME_TRUE : SPIKE_TIME_FALSE);
+                dataset[i] = new Sample(input.ToArray(), sampleIsTrue ? SPIKE_TIME_TRUE : SPIKE_TIME_FALSE);
             }
 
             // Shuffle(rnd, dataset);
@@ -184,7 +184,7 @@ namespace SpikepropSharp.Utility
                 }
 
                 dataset[i] = new Sample(
-                    input: input,
+                    input: input.ToArray(),
                     output: EcgSignalLabelsTrain.FirstOrDefault(l => l >= t && l < t + INPUT_SIZE) != default ? SPIKE_TIME_TRUE : SPIKE_TIME_FALSE);
             }
 
