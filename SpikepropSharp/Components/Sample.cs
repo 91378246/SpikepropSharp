@@ -1,14 +1,13 @@
-﻿namespace SpikepropSharp.Components
-{
-    public sealed class Sample
-    {
-        public List<double> Input { get; set; } = new(3);
-        public double Output { get; set; }
+﻿namespace SpikepropSharp.Components;
 
-        public Sample(List<double> input, double output)
-        {
-            Input = input;
-            Output = output;
-        }
+public sealed class Sample
+{
+    public double[] Input { get; set; }
+    public double Output { get; set; }
+
+    public Sample(double[] input, double output)
+    {
+        Input = input;
+        Output = output;
     }
 }

@@ -12,7 +12,7 @@ namespace SpikepropSharp.Components
 
     public sealed class Network
     {
-        public List<Neuron>[] Layers { get; private set; }
+        public Neuron[][] Layers { get; private set; }
         public double CurrentError { get; set; } = double.MaxValue;
 
         private Random Rnd { get; }
@@ -20,7 +20,7 @@ namespace SpikepropSharp.Components
         public Network(Random rnd)
         {
             Rnd = rnd;
-            Layers = new List<Neuron>[3];
+            Layers = new Neuron[3][];
         }
 
         public void Create(string[] namesInput, string[] namesHidden, string[] namesOutput)
@@ -34,17 +34,17 @@ namespace SpikepropSharp.Components
 
             InitializeWeights();
 
-            static List<Neuron> CreateLayer(string[] keys)
+            static Neuron[] CreateLayer(string[] keys)
             {
                 List<Neuron> layer = new();
                 foreach (string key in keys)
                 {
                     layer.Add(new Neuron(key));
                 }
-                return new List<Neuron>(layer);
+                return layer.ToArray();
             }
 
-            static void ConnectLayers(List<Neuron> pre_layer, List<Neuron> post_layer)
+            static void ConnectLayers(Neuron[] pre_layer, Neuron[] post_layer)
             {
                 foreach (Neuron pre in pre_layer)
                 {
@@ -56,22 +56,26 @@ namespace SpikepropSharp.Components
 
                 static void ConnectNeurons(Neuron pre, Neuron post)
                 {
+                    List<Synapse> synPost = post.SynapsesIn.ToList();
                     for (double delay_i = 16; delay_i > 0; delay_i--)
                     {
-                        post.SynapsesIn.Add(new Synapse(pre, .0, delay_i + 1.0));
+                        synPost.Add(new Synapse(pre, 0, delay_i + 1.0));
                     }
-                    pre.NeuronsPost.Add(post);
+                    post.SynapsesIn = synPost.ToArray();
+
+                    List<Neuron> neuronsPost = pre.NeuronsPost.ToList();
+                    neuronsPost.Add(post);
+                    pre.NeuronsPost = neuronsPost.ToArray();
                 }
             }
 
             void InitializeWeights()
             {
-                // Set random weights
                 foreach (Neuron n in Layers[(int)Layer.Hidden])
                 {
                     foreach (Synapse synapse in n.SynapsesIn)
                     {
-                        synapse.Weight = Rnd.NextDouble(-.5, 1.0);
+                        synapse.Weight = Rnd.NextDouble(-0.5, 1);
                     }
                 }
 
@@ -79,11 +83,11 @@ namespace SpikepropSharp.Components
                 {
                     if (synapse == Layers[(int)Layer.Output].First().SynapsesIn.Last())
                     {
-                        synapse.Weight = Rnd.NextDouble(-.5, 0.0);
+                        synapse.Weight = Rnd.NextDouble(-0.5, 0);
                     }
                     else
                     {
-                        synapse.Weight = Rnd.NextDouble(0.0, 1.0);
+                        synapse.Weight = Rnd.NextDouble(0, 1);
                     }
                 }
             }
@@ -91,23 +95,23 @@ namespace SpikepropSharp.Components
 
         public void Clear()
         {
-            foreach (List<Neuron> layer in Layers)
+            for (int l = 0; l < Layers.Length; l++)
             {
-                foreach (Neuron neuron in layer)
+                for (int n = 0; n < Layers[l].Length; n++)
                 {
-                    neuron.Spikes.Clear();
+                    Layers[l][n].Spikes.Clear();
                 }
             }
         }
 
         public void LoadSample(Sample sample)
         {
-            if (sample.Input.Count != Layers[(int)Layer.Input].Count)
+            if (sample.Input.Length != Layers[(int)Layer.Input].Length)
             {
-                throw new ArgumentException($"Invalid sample input count {sample.Input.Count}, expected {Layers[(int)Layer.Input].Count - 1}");
+                throw new ArgumentException($"Invalid sample input count {sample.Input.Length}, expected {Layers[(int)Layer.Input].Length - 1}");
             }
 
-            for (int i = 0; i < sample.Input.Count; i++)
+            for (int i = 0; i < sample.Input.Length; i++)
             {
                 Layers[(int)Layer.Input][i].Fire(sample.Input[i]);
             }
@@ -126,11 +130,11 @@ namespace SpikepropSharp.Components
 
             for (double t = 0; t < tMax && NotAllOutputsSpiked(); t += timestep)
             {
-                foreach (List<Neuron> layer in Layers)
+                for (int l = 0; l < Layers.Length; l++)
                 {
-                    foreach (Neuron neuron in layer)
+                    for (int n = 0; n < Layers[l].Length; n++)
                     {
-                        neuron.Forward(t);
+                        Layers[l][n].Forward(t);
                     }
                 }
             }
@@ -150,14 +154,14 @@ namespace SpikepropSharp.Components
             List<double> weights = new();
             List<double> delays = new();
 
-            foreach (List<Neuron> layer in Layers)
+            for (int l = 0; l < Layers.Length; l++)
             {
-                foreach (Neuron neuron in layer)
+                for (int n = 0; n < Layers[l].Length; n++)
                 {
-                    foreach (Synapse synapse in neuron.SynapsesIn)
+                    for (int s = 0; s < Layers[l][n].SynapsesIn.Length; s++)
                     {
-                        weights.Add(synapse.Weight);
-                        delays.Add(synapse.Delay);
+                        weights.Add(Layers[l][n].SynapsesIn[s].Weight);
+                        delays.Add(Layers[l][n].SynapsesIn[s].Delay);
                     }
                 }
             }
@@ -169,7 +173,7 @@ namespace SpikepropSharp.Components
         {
             List<double>[] weightsAndDelays = JsonSerializer.Deserialize<List<double>[]>(File.ReadAllText(path))!;
             int synI = 0;
-            foreach (List<Neuron> layer in Layers)
+            foreach (Neuron[] layer in Layers)
             {
                 foreach (Neuron neuron in layer)
                 {

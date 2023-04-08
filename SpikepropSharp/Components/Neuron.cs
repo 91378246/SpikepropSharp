@@ -9,9 +9,9 @@
 
         public string Name = "";
         public double Clamped { get; set; }
-        public List<Synapse> SynapsesIn = new();
-        public List<Neuron> NeuronsPost = new();
-        public List<double> Spikes = new(); // Eq (1)
+        public Synapse[] SynapsesIn { get; set; } = Array.Empty<Synapse>();
+        public Neuron[] NeuronsPost { get; set; } = Array.Empty<Neuron>();
+        public List<double> Spikes { get; set; } // Eq (1)
 
         public Neuron(string name = "neuron")
         {

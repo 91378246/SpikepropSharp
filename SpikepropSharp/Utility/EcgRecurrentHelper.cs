@@ -1,11 +1,15 @@
 ﻿using MatFileHandler;
 using SpikepropSharp.Components;
+using SpikepropSharp.ComponentsRecurrent;
 using SpikepropSharp.Data;
+using System;
 using System.Diagnostics;
+using Network = SpikepropSharp.ComponentsRecurrent.Network;
+using Neuron = SpikepropSharp.ComponentsRecurrent.Neuron;
 
 namespace SpikepropSharp.Utility
 {
-    public static class EcgHelper
+    public static class EcgRecurrentHelper
     {
         // Data
         private const string DATA_DIR_PATH = "Data";
@@ -18,8 +22,9 @@ namespace SpikepropSharp.Utility
         private const double SPIKE_TIME_FALSE = 16;
 
         // Network
-        private const int INPUT_SIZE = 100;
+        private const int INPUT_SIZE = 2;
         private const int HIDDEN_SIZE = 5;
+        private const int OUTPUT_SIZE = 2;
         private const int T_MAX = 40;
         private const int TRIALS = 1;
         private const int EPOCHS = 100;
@@ -147,7 +152,7 @@ namespace SpikepropSharp.Utility
                 input.Add(0);
 
                 bool sampleIsTrue = EcgSignalLabelsTrain.FirstOrDefault(l => l >= t - INPUT_SIZE && l < t) != default;
-                dataset[i] = new Sample(input.ToArray(), sampleIsTrue ? SPIKE_TIME_TRUE : SPIKE_TIME_FALSE);
+                dataset[i] = new Sample(input, sampleIsTrue ? SPIKE_TIME_TRUE : SPIKE_TIME_FALSE);
             }
 
             // Shuffle(rnd, dataset);
@@ -177,12 +182,9 @@ namespace SpikepropSharp.Utility
                 {
                     input.Add(EcgSignalSpikesTrain.ContainsKey(t++) ? SPIKE_TIME_INPUT : 0);
                 }
-                // Bias
-                input.Add(0);
-
 
                 dataset[i] = new Sample(
-                    input: input.ToArray(),
+                    input: input,
                     output: EcgSignalLabelsTrain.FirstOrDefault(l => l >= t && l < t + INPUT_SIZE) != default ? SPIKE_TIME_TRUE : SPIKE_TIME_FALSE);
             }
 
@@ -194,25 +196,8 @@ namespace SpikepropSharp.Utility
 
         private static Network CreateNetwork(Random rnd)
         {
-            string[] inputNeurons = new string[INPUT_SIZE + 1];
-            for (int i = 0; i < inputNeurons.Length - 1; i++)
-            {
-                inputNeurons[i] = $"input {i}";
-            }
-            inputNeurons[^1] = "bias";
-
-            string[] hiddenNeurons = new string[HIDDEN_SIZE];
-            for (int i = 0; i < hiddenNeurons.Length; i++)
-            {
-                hiddenNeurons[i] = $"hidden {i}";
-            }
-
             Network network = new(rnd);
-            network.Create(
-                namesInput: inputNeurons,
-                namesHidden: hiddenNeurons,
-                namesOutput: new[] { "output" }
-            );
+            network.Create(INPUT_SIZE, HIDDEN_SIZE, OUTPUT_SIZE);
 
             return network;
         }
@@ -239,80 +224,97 @@ namespace SpikepropSharp.Utility
                 double lowestError = double.MaxValue;
 
                 // Load a prev saved one
-                string prevWeightsAndDelaysFile = $"network_{trial}_070423.json";
-                if (loadPrevWeights && File.Exists(prevWeightsAndDelaysFile))
-                {
-                    networks[trial].LoadWeightsAndDelays(prevWeightsAndDelaysFile);
-                    Console.WriteLine($"[T{trial}] loaded weights and delays from {prevWeightsAndDelaysFile}");
-                }
+                //string prevWeightsAndDelaysFile = $"network_{trial}_070423.json";
+                //if (loadPrevWeights && File.Exists(prevWeightsAndDelaysFile))
+                //{
+                //    networks[trial].LoadWeightsAndDelays(prevWeightsAndDelaysFile);
+                //    Console.WriteLine($"[T{trial}] loaded weights and delays from {prevWeightsAndDelaysFile}");
+                //}
 
-                // Main training loop
-                for (int epoch = 0; epoch < EPOCHS; ++epoch)
-                {
-                    Stopwatch sw = new();
-                    sw.Start();
+                //for (int epoch = 0; epoch < 100; ++epoch)
+                //{
+                //    var spike_patterns_decimated = decimate_events(spike_patterns_train, 200, random_gen);
+                //    double loss_batch = 0;
+                //    double loss_epoch = 0;
+                //    int error_epoch = 0;
+                //    foreach (auto[pattern_i, pattern] in ranges.views.enumerate(spike_patterns_decimated))
+                //    {
+                //        // forward
+                //        var spikes = networks[trial].forward_propagate(pattern);
 
-                    double sumSquaredError = 0;
-                    Sample[] samples = GetDataset(rnd);
-                    for (int sampleI = 0; sampleI < samples.Length; sampleI++)
-                    {
-                        Sample sample = samples[sampleI];
-                        Debug.WriteLine($"Processing sample {++sampleI}/{DATASET_TRAIN_SIZE}");
+                //        // update logs
+                //        loss_batch += networks[trial].compute_loss(network);
+                //        if (networks[trial].first_spike_result(network) != pattern.label)
+                //        {
+                //            error_epoch++;
+                //        }
 
-                        networks[trial].Clear();
-                        networks[trial].LoadSample(sample);
-                        networks[trial].Forward(T_MAX, TIMESTEP);
-                        if (output_neuron.Spikes.Count == 0)
-                        {
-                            Console.ForegroundColor = color;
-                            Console.WriteLine($"[T{trial}] No output spikes! Replacing with different trial.");
-                            trial -= 1;
-                            sumSquaredError = epoch = (int)1e9;
-                            break;
-                        }
-                        sumSquaredError += 0.5 * Math.Pow(output_neuron.Spikes.First() - output_neuron.Clamped, 2);
+                //        // backprop
+                //        networks[trial].backprop(spikes, learning_rate);
 
-                        // Backward propagation
-                        for (int l = 0; l < networks[trial].Layers.Length; l++)
-                        {
-                            for (int n = 0; n < networks[trial].Layers[l].Length; n++)
-                            {
-                                networks[trial].Layers[l][n].ComputeDeltaWeights(LEARNING_RATE - ((LEARNING_RATE * 99 / EPOCHS) / 2));
-                                foreach (Synapse synapse in networks[trial].Layers[l][n].SynapsesIn)
-                                {
-                                    synapse.Weight += synapse.WeightDelta;
-                                    synapse.WeightDelta = 0.0;
-                                }
-                            }
-                        }
-                    }
-                    Console.ForegroundColor = color;
-                    Console.WriteLine($"[T{trial}] ep:{epoch} er:{sumSquaredError} t:{sw.Elapsed:mm\\:ss}");
-                    networks[trial].CurrentError = sumSquaredError;
-                    errors[networks[trial]].Add(sumSquaredError);
-
-                    if (sumSquaredError < lowestError)
-                    {
-                        networks[trial].SaveWeightsAndDelays($"network_{trial}_{DateTime.Now:ddMMyy}.json");
-                    }
-
-                    // Stopping criterion
-                    if (sumSquaredError < 1)
-                    {
-                        AvgNrOfEpochs = (AvgNrOfEpochs * trial + epoch) / (trial + 1);
-                        break;
-                    }              
-
-                    if (epoch != 0 && epoch % 20 == 0)
-                    {
-                        if (runTestsInBetween)
-                        {
-                            Test(networks[trial], color, trial, epoch);
-                        }
-
-                        Validate(networks[trial]);
-                    }
-                }
+                //        // per batch change weights and report logs
+                //        if ((pattern_i + 1) % batch_size == 0 || pattern_i + 1 == spike_patterns_decimated.size())
+                //        {
+                //            foreach (var layer in networks[trial].Layers)
+                //            {
+                //                foreach (var n in layer)
+                //                {
+                //                    foreach (var incoming_connection in n.incoming_connections)
+                //                    {
+                //                        foreach (var synapse in incoming_connection.synapses)
+                //                        {
+                //                            synapse.weight += synapse.delta_weight;
+                //                            synapse.delta_weight = 0.0;
+                //                        }
+                //                    }
+                //                }
+                //            }
+                //            Console.Write("batch loss after pattern ");
+                //            Console.Write(pattern_i + 1);
+                //            Console.Write(" ");
+                //            Console.Write(loss_batch / (pattern_i % batch_size + 1));
+                //            Console.Write("\n");
+                //            loss_epoch += loss_batch;
+                //            loss_batch = 0;
+                //        }
+                //    }
+                //    // report epoch logs
+                //    Console.Write("train loss  after epoch ");
+                //    Console.Write(epoch);
+                //    Console.Write(" ");
+                //    Console.Write(loss_epoch / spike_patterns_train.size());
+                //    Console.Write("\n");
+                //    Console.Write("train error after epoch ");
+                //    Console.Write(epoch);
+                //    Console.Write(" ");
+                //    Console.Write(100 * (double)error_epoch / spike_patterns_train.size());
+                //    Console.Write(" %");
+                //    Console.Write("\n");
+                //    {
+                //        double loss_validation = 0;
+                //        int error_validation = 0;
+                //        foreach (var pattern in spike_patterns_validation_decimated)
+                //        {
+                //            networks[trial].forward_propagate(pattern);
+                //            loss_validation += networks[trial].compute_loss(network);
+                //            if (networks[trial].first_spike_result(network) != pattern.label)
+                //            {
+                //                ++error_validation;
+                //            }
+                //        }
+                //        Console.Write("validation loss  after epoch ");
+                //        Console.Write(epoch);
+                //        Console.Write(" ");
+                //        Console.Write(loss_validation / spike_patterns_validation.size());
+                //        Console.Write("\n");
+                //        Console.Write("validation error after epoch ");
+                //        Console.Write(epoch);
+                //        Console.Write(" ");
+                //        Console.Write(100 * (double)error_validation / spike_patterns_validation.size());
+                //        Console.Write(" %");
+                //        Console.Write("\n");
+                //    }
+                //}          
             });
 
             Console.Write("Average nr of epochs per trial: ");
@@ -340,7 +342,7 @@ namespace SpikepropSharp.Utility
                 {
                     foreach (Sample sample in GetDataset(rnd))
                     {
-                        double predictionRaw = network.Predict(sample, T_MAX, TIMESTEP);
+                        double predictionRaw = 0; // network.Predict(sample, T_MAX, TIMESTEP);
                         bool prediction = ConvertSpikeTimeToResult(predictionRaw);
                         bool label = ConvertSpikeTimeToResult(sample.Output);
 
@@ -417,7 +419,7 @@ namespace SpikepropSharp.Utility
                 int sampleI = 0;
                 foreach (Sample sample in GetValidationDataset())
                 {
-                    double predictionRaw = bestNetwork.Predict(sample, T_MAX, TIMESTEP);
+                    double predictionRaw = 0; // bestNetwork.Predict(sample, T_MAX, TIMESTEP);
                     bool prediction = ConvertSpikeTimeToResult(predictionRaw);
                     bool label = ConvertSpikeTimeToResult(sample.Output);
 
