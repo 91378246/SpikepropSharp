@@ -4,16 +4,18 @@ namespace SpikepropSharp.Utility
 {
     public static class XorHelper
     {
+        // Data
+        private const double SPIKE_TIME_INPUT = 6;
+        private const double SPIKE_TIME_TRUE = 10;
+        private const double SPIKE_TIME_FALSE = 16;
+
+        // Network
         private const int TRIALS = 10;
         private const int EPOCHS = 1000;
         private const int TEST_RUNS = 100;
         private const double TIMESTEP = 0.1;
         private const double T_MAX = 40;
         private const double LEARNING_RATE = 1e-2;
-
-        private const double SPIKE_TIME_INPUT = 6;
-        private const double SPIKE_TIME_TRUE = 10;
-        private const double SPIKE_TIME_FALSE = 16;
 
         /// <summary>
         /// [input 1, input 2, bias] = SPIKE_TIME_TRUE/SPIKE_TIME_FALSE
@@ -80,15 +82,15 @@ namespace SpikepropSharp.Utility
                         // Backward propagation and changing weights (no batch-mode)
                         foreach (Neuron[] layer in network.Layers)
                         {
-                            foreach (Neuron neuron in layer)
+                            Parallel.ForEach(layer, neuron =>
                             {
                                 neuron.ComputeDeltaWeights(LEARNING_RATE);
-                                foreach (Synapse synapse in neuron.SynapsesIn)
+                                for (int synI = 0; synI < neuron.SynapsesIn.Length; synI++)
                                 {
-                                    synapse.Weight += synapse.WeightDelta;
-                                    synapse.WeightDelta = 0.0;
+                                    neuron.SynapsesIn[synI].Weight += neuron.SynapsesIn[synI].WeightDelta;
+                                    neuron.SynapsesIn[synI].WeightDelta = 0.0;
                                 }
-                            }
+                            });
                         }
                     }
                     Console.ForegroundColor = color;

@@ -10,7 +10,7 @@ namespace SpikepropSharp.Utility
         // Data
         private const string DATA_DIR_PATH = "Data";
         private const int SAMPLE_INDEX = 0;
-        private const int DATASET_TRAIN_SIZE = 10;
+        private const int DATASET_TRAIN_SIZE = 4;
         private const int DATASET_VALIDATE_SIZE = 1000;
         private const double SOD_SAMPLING_THRESHOLD = 1;
         private const double SPIKE_TIME_INPUT = 6;
@@ -18,11 +18,11 @@ namespace SpikepropSharp.Utility
         private const double SPIKE_TIME_FALSE = 16;
 
         // Network
-        private const int INPUT_SIZE = 50;
-        private const int HIDDEN_SIZE = 5;
+        private const int INPUT_SIZE = 10;
+        private const int HIDDEN_SIZE = 2;
         private const int T_MAX = 40;
         private const int TRIALS = 1;
-        private const int EPOCHS = 100;
+        private const int EPOCHS = 1000;
         private const int TEST_RUNS = 100;
         private const double TIMESTEP = 0.1;
         private const double LEARNING_RATE = 1e-2;
@@ -104,38 +104,38 @@ namespace SpikepropSharp.Utility
             for (int i = 0; i < dataset.Length; i++)
             {
                 int t = 0;
-                //bool sampleIsTrue = i % 2 == 0;
+                bool sampleIsTrue = i % 2 == 0;
 
-                //// Get a random label timestamp
-                //if (sampleIsTrue)
-                //{
-                //    // Get a random label time
-                //    double labelT = EcgSignalLabelsTrain[rnd.Next(EcgSignalLabelsTrain.Length)];
+                // Get a random label timestamp
+                if (sampleIsTrue)
+                {
+                    // Get a random label time
+                    double labelT = EcgSignalLabelsTrain[rnd.Next(EcgSignalLabelsTrain.Length)];
 
-                //    // Set t to be equal or less than labelT
-                //    t = (int)labelT - rnd.Next(rnd.Next(INPUT_SIZE / 2));
-                //}
-                //// Get a random non label timestamp
-                //else
-                //{
-                //    while (t == 0)
-                //    {
-                //        // Get a random input time
-                //        t = rnd.Next((int)EcgSignalSpikesTrain.Last().Key - INPUT_SIZE);
+                    // Set t to be equal or less than labelT
+                    t = (int)labelT - rnd.Next(rnd.Next(INPUT_SIZE / 2));
+                }
+                // Get a random non label timestamp
+                else
+                {
+                    while (t == 0)
+                    {
+                        // Get a random input time
+                        t = rnd.Next((int)EcgSignalSpikesTrain.Last().Key - INPUT_SIZE);
 
-                //        // Set t to be equal or less than that input time
-                //        t -= rnd.Next(rnd.Next(INPUT_SIZE / 2));
+                        // Set t to be equal or less than that input time
+                        t -= rnd.Next(rnd.Next(INPUT_SIZE / 2));
 
-                //        // Make sure the sample isn't true
-                //        if (EcgSignalLabelsTrain.FirstOrDefault(l => l >= t && l < t + INPUT_SIZE) != default)
-                //        {
-                //            t = 0;
-                //        }
-                //    }
-                //}
+                        // Make sure the sample isn't true
+                        if (EcgSignalLabelsTrain.FirstOrDefault(l => l >= t && l < t + INPUT_SIZE) != default)
+                        {
+                            t = 0;
+                        }
+                    }
+                }
 
                 // Get a random t
-                t = rnd.Next((int)EcgSignalSpikesTrain.Last().Key - INPUT_SIZE);
+                // t = rnd.Next((int)EcgSignalSpikesTrain.Last().Key - INPUT_SIZE);
 
                 // Get the input
                 List<double> input = new();
@@ -146,11 +146,11 @@ namespace SpikepropSharp.Utility
                 // Bias
                 input.Add(0);
 
-                bool sampleIsTrue = EcgSignalLabelsTrain.FirstOrDefault(l => l >= t - INPUT_SIZE && l < t) != default;
+                // bool sampleIsTrue = EcgSignalLabelsTrain.FirstOrDefault(l => l >= t - INPUT_SIZE && l < t) != default;
                 dataset[i] = new Sample(input.ToArray(), sampleIsTrue ? SPIKE_TIME_TRUE : SPIKE_TIME_FALSE);
             }
 
-            // Shuffle(rnd, dataset);
+            Shuffle(rnd, dataset);
             return dataset;
 
             static T[] Shuffle<T>(Random rnd, T[] array)
@@ -239,11 +239,14 @@ namespace SpikepropSharp.Utility
                 double lowestError = double.MaxValue;
 
                 // Load a prev saved one
-                string prevWeightsAndDelaysFile = $"network_{trial}_070423.json";
+                string prevWeightsAndDelaysFile = $"network_0_080423.json";
                 if (loadPrevWeights && File.Exists(prevWeightsAndDelaysFile))
                 {
                     networks[trial].LoadWeightsAndDelays(prevWeightsAndDelaysFile);
                     Console.WriteLine($"[T{trial}] loaded weights and delays from {prevWeightsAndDelaysFile}");
+
+                    Test(networks[trial], color, trial, -1);
+                    Validate(networks[trial]);
                 }
 
                 // Main training loop
@@ -256,7 +259,7 @@ namespace SpikepropSharp.Utility
                     Sample[] samples = GetDataset(rnd);
                     for (int sampleI = 0; sampleI < samples.Length; sampleI++)
                     {
-                        Debug.WriteLine($"Processing sample {++sampleI}/{DATASET_TRAIN_SIZE}");
+                        // Debug.WriteLine($"Processing sample {sampleI + 1}/{DATASET_TRAIN_SIZE}");
 
                         networks[trial].Clear();
                         networks[trial].LoadSample(samples[sampleI]);
@@ -274,15 +277,15 @@ namespace SpikepropSharp.Utility
                         // Backward propagation
                         for (int l = 0; l < networks[trial].Layers.Length; l++)
                         {
-                            for (int n = 0; n < networks[trial].Layers[l].Length; n++)
+                            Parallel.For(0, networks[trial].Layers[l].Length, n =>
                             {
                                 networks[trial].Layers[l][n].ComputeDeltaWeights(LEARNING_RATE - ((LEARNING_RATE * 99 / EPOCHS) / 2));
-                                foreach (Synapse synapse in networks[trial].Layers[l][n].SynapsesIn)
+                                for (int synI = 0; synI < networks[trial].Layers[l][n].SynapsesIn.Length; synI++)
                                 {
-                                    synapse.Weight += synapse.WeightDelta;
-                                    synapse.WeightDelta = 0.0;
+                                    networks[trial].Layers[l][n].SynapsesIn[synI].Weight += networks[trial].Layers[l][n].SynapsesIn[synI].WeightDelta;
+                                    networks[trial].Layers[l][n].SynapsesIn[synI].WeightDelta = 0;
                                 }
-                            }
+                            });
                         }
                     }
                     Console.ForegroundColor = color;
@@ -300,9 +303,9 @@ namespace SpikepropSharp.Utility
                     {
                         AvgNrOfEpochs = (AvgNrOfEpochs * trial + epoch) / (trial + 1);
                         break;
-                    }              
+                    }
 
-                    if (epoch != 0 && epoch % 20 == 0)
+                    if (epoch != 0 && epoch % 25 == 0)
                     {
                         if (runTestsInBetween)
                         {

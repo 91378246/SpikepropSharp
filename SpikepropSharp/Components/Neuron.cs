@@ -82,7 +82,8 @@
 
         public double ComputeDuDw(Synapse synapse, double spikeThis) // Eq (11)
         {
-            double duDw = 0.0;
+            double duDw = 0;
+
             // Foreach spike from the pre neuron of the syn
             for (int spikeI = 0; spikeI < synapse.NeuronPre.Spikes.Count; spikeI++)
             {
@@ -100,9 +101,11 @@
 
             return duDw;
         }
+
         public double ComputeDuDt(double spikeThis) // Eq (12)
         {
-            double duDt = 0.0;
+            double duDt = 0;
+
             // Foreach syn in
             for (int synI = 0; synI < SynapsesIn.Length; synI++)
             {
@@ -132,7 +135,7 @@
 
         public double ComputeDeDt(double spikeThis) // Eq (13)
         {
-            if (Clamped > 0.0)
+            if (Clamped > 0)
             {
                 if (spikeThis == Spikes[0])
                 {
@@ -141,6 +144,7 @@
             }
 
             double deDt = 0.0;
+
             // Foreach neuron post
             for (int neuronI = 0; neuronI < NeuronsPost.Length; neuronI++)
             {
@@ -163,7 +167,8 @@
 
         public double ComputeDpostuDt(double spikeThis, Neuron neuronPost, double spikePost) // Eq (15)
         {
-            double dpostuDt = 0.0;
+            double dpostuDt = 0;
+
             // Foreach syn in of the given neuron post
             for (int synI = 0; synI < neuronPost.SynapsesIn.Length; synI++)
             {
