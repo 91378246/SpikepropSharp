@@ -142,7 +142,7 @@ public class ConfusionMatrix
 
     public override string ToString()
     {
-        return $"Pos:{TotalPositives}, Neg:{TotalNegatives}\n" +
+        return $"Tot.Pos:{TotalPositives}, Tot.Neg:{TotalNegatives}\n" +
             $"TP: {TruePositives}, FP: {FalsePositives}\n" +
             $"TN: {TrueNegatives}, FN: {FalseNegatives}\n" +
             $"Sensitivity: {Sensitivity}, Specificity: {Specificity}\n" +

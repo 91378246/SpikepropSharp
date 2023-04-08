@@ -35,10 +35,9 @@ namespace SpikepropSharp.Data
             }
         }
 
-        private static string RunPythonScript(string dataFilePath)
+        private static async void RunPythonScript(string dataFilePath)
         {
             string pythonFilePath = Path.GetFullPath("Data/visualize.py");
-            string result = "";
             ProcessStartInfo start = new()
             {
                 FileName = PYTHON_PATH,
@@ -49,14 +48,14 @@ namespace SpikepropSharp.Data
                 RedirectStandardOutput = true
             };
 
-            using (Process process = Process.Start(start))
-            {
-                using StreamReader reader = process.StandardOutput;
-                result = reader.ReadToEnd();
-                Console.WriteLine(result);
-            }
+            using Process process = Process.Start(start);
+            using StreamReader reader = process.StandardOutput;
+            string output = await reader.ReadToEndAsync();
 
-            return result;
+            if (!string.IsNullOrWhiteSpace(output))
+            {
+                Console.WriteLine(output);
+            }
         }
     }
 }

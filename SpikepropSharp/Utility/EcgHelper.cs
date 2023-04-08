@@ -12,17 +12,17 @@ namespace SpikepropSharp.Utility
         private const int SAMPLE_INDEX = 0;
         private const int DATASET_TRAIN_SIZE = 10;
         private const int DATASET_VALIDATE_SIZE = 1000;
-        private const double SOD_SAMPLING_THRESHOLD = 0.5;
+        private const double SOD_SAMPLING_THRESHOLD = 1;
         private const double SPIKE_TIME_INPUT = 6;
         private const double SPIKE_TIME_TRUE = 10;
         private const double SPIKE_TIME_FALSE = 16;
 
         // Network
         private const int INPUT_SIZE = 10;
-        private const int HIDDEN_SIZE = 10;
-        private const int T_MAX = 30;
+        private const int HIDDEN_SIZE = 5;
+        private const int T_MAX = 40;
         private const int TRIALS = 1;
-        private const int EPOCHS = 100;
+        private const int EPOCHS = 50;
         private const int TEST_RUNS = 100;
         private const double TIMESTEP = 0.1;
         private const double LEARNING_RATE = 1e-2;
@@ -30,10 +30,10 @@ namespace SpikepropSharp.Utility
         private static Dictionary<double, bool> EcgSignalSpikesTrain { get; set; } = null!;
         private static double[] EcgSignalLabelsTrain { get; set; } = null!;
 
-        private static void LoadData(int sampleIndex = SAMPLE_INDEX, double sodSamplingThreshold = SOD_SAMPLING_THRESHOLD)
+        private static void LoadData(int sampleIndex = SAMPLE_INDEX)
         {
             double[] ecgSignalRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, $"ecg_{sampleIndex}.mat"), "signal");
-            EcgSignalSpikesTrain = ApplySodSampling(ecgSignalRaw, sodSamplingThreshold);
+            EcgSignalSpikesTrain = ApplySodSampling(ecgSignalRaw, SOD_SAMPLING_THRESHOLD);
 
             double[] ecgSignalLabelsRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, $"ecg_{sampleIndex}_ann.mat"), "ann").ToArray();
             EcgSignalLabelsTrain = ConvertAnnotationTimestampsToLabels(ecgSignalLabelsRaw).ToArray();
@@ -82,8 +82,6 @@ namespace SpikepropSharp.Utility
         /// </summary>
         /// <param name="filePath">The path to the matlab file</param>
         /// <param name="fieldName">The name of the data field within the matlab file</param>
-        /// <param name="scaleFactor">A factor to scale the matlab values with</param>
-        /// <typeparam name="T">The type of the data within the specified field</typeparam>
         /// <returns></returns>
         /// <exception cref="FormatException"></exception>
         private static double[] LoadMatlabEcgData(string filePath, string fieldName)
@@ -106,7 +104,7 @@ namespace SpikepropSharp.Utility
             for (int i = 0; i < dataset.Length; i++)
             {
                 int t = 0;
-                bool sampleIsTrue = i < 3;
+                bool sampleIsTrue = i % 2 == 0;
 
                 // Get a random label timestamp
                 if (sampleIsTrue)
@@ -215,7 +213,7 @@ namespace SpikepropSharp.Utility
             return network;
         }
 
-        public static void RunTest(Random rnd, bool runTestsInBetween = false, bool loadPrevWeights = false)
+        public static void RunTest(Random rnd, bool runTestsInBetween = true, bool loadPrevWeights = false)
         {
             Console.WriteLine("Loading data...");
             LoadData();
@@ -271,7 +269,7 @@ namespace SpikepropSharp.Utility
                         {
                             foreach (Neuron neuron in layer)
                             {
-                                neuron.ComputeDeltaWeights(LEARNING_RATE);
+                                neuron.ComputeDeltaWeights(LEARNING_RATE - ((LEARNING_RATE * 99 / EPOCHS) / 2));
                                 foreach (Synapse synapse in neuron.SynapsesIn)
                                 {
                                     synapse.Weight += synapse.WeightDelta;
@@ -291,24 +289,22 @@ namespace SpikepropSharp.Utility
                     }
 
                     // Stopping criterion
-                    if (sumSquaredError < 1.0)
+                    if (sumSquaredError < 1)
                     {
                         AvgNrOfEpochs = (AvgNrOfEpochs * trial + epoch) / (trial + 1);
                         break;
-                    }
+                    }              
 
-                    if (runTestsInBetween && epoch % 2 == 0)
+                    if (epoch % 20 == 0)
                     {
-                        Test(networks[trial], color, trial, epoch);
-                    }
+                        if (runTestsInBetween)
+                        {
+                            Test(networks[trial], color, trial, epoch);
+                        }
 
-                    if (epoch % 10 == 0)
-                    {
                         Validate(networks[trial]);
                     }
                 }
-
-                Test(networks[trial], color, trial, EPOCHS - 1);
             });
 
             Console.Write("Average nr of epochs per trial: ");
@@ -316,6 +312,8 @@ namespace SpikepropSharp.Utility
             Console.WriteLine("\n#############################################################################");
 
             Network bestNetwork = networks.OrderBy(network => network.CurrentError).First();
+            PrintConfiguration();
+            Test(bestNetwork, ConsoleColor.Gray, -1, EPOCHS - 1);
             Validate(bestNetwork);
 
             Console.WriteLine("Done");
@@ -376,6 +374,29 @@ namespace SpikepropSharp.Utility
 
             Dictionary<double, bool> GetRange(Dictionary<double, bool> dict, int startIndex, int endIndex) =>
                 dict.OrderBy(d => d.Key).Skip(startIndex).Take(endIndex - startIndex + 1).ToDictionary(k => k.Key, v => v.Value);
+
+            void PrintConfiguration()
+            {
+                Console.WriteLine("#############################################################################");
+                Console.WriteLine("CONFIG DATA:");
+                Console.WriteLine($"\tSAMPLE_INDEX = {SAMPLE_INDEX}");
+                Console.WriteLine($"\tDATASET_TRAIN_SIZE = {DATASET_TRAIN_SIZE}");
+                Console.WriteLine($"\tDATASET_VALIDATE_SIZE = {DATASET_VALIDATE_SIZE}");
+                Console.WriteLine($"\tSOD_SAMPLING_THRESHOLD = {SOD_SAMPLING_THRESHOLD}");
+                Console.WriteLine($"\tSPIKE_TIME_INPUT = {SPIKE_TIME_INPUT}");
+                Console.WriteLine($"\tSPIKE_TIME_TRUE = {SPIKE_TIME_TRUE}");
+                Console.WriteLine($"\tSPIKE_TIME_FALSE = {SPIKE_TIME_FALSE}");
+                Console.WriteLine("CONFIG NETWORK:");
+                Console.WriteLine($"\tINPUT_SIZE = {INPUT_SIZE}");
+                Console.WriteLine($"\tHIDDEN_SIZE = {HIDDEN_SIZE}");
+                Console.WriteLine($"\tT_MAX = {T_MAX}");
+                Console.WriteLine($"\tTRIALS = {TRIALS}");
+                Console.WriteLine($"\tEPOCHS = {EPOCHS}");
+                Console.WriteLine($"\tTEST_RUNS = {TEST_RUNS}");
+                Console.WriteLine($"\tTIMESTEP = {TIMESTEP}");
+                Console.WriteLine($"\tLEARNING_RATE = {LEARNING_RATE}");
+                Console.WriteLine("#############################################################################");
+            }
 
             void Validate(Network bestNetwork)
             {
