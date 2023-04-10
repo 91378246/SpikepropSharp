@@ -16,6 +16,9 @@ namespace SpikepropSharp.Components
         public double CurrentError { get; set; } = double.MaxValue;
 
         private Random Rnd { get; }
+        private string[] NamesInput { get; set; }
+        private string[] NamesHidden { get; set; }
+        private string[] NamesOutput { get; set; }
 
         public Network(Random rnd)
         {
@@ -25,6 +28,10 @@ namespace SpikepropSharp.Components
 
         public void Create(string[] namesInput, string[] namesHidden, string[] namesOutput)
         {
+            NamesInput = namesInput;
+            NamesHidden = namesHidden;
+            NamesOutput = namesOutput;
+
             Layers[(int)Layer.Input] = CreateLayer(namesInput);
             Layers[(int)Layer.Hidden] = CreateLayer(namesHidden);
             Layers[(int)Layer.Output] = CreateLayer(namesOutput);
@@ -151,6 +158,12 @@ namespace SpikepropSharp.Components
 
         public void SaveWeightsAndDelays(string path)
         {
+            (List<double> weights, List<double> delays) = GetWeightsAndDelays();
+            File.WriteAllText(path, JsonSerializer.Serialize(new List<double>[] { weights, delays }));
+        }
+
+        public (List<double> weights, List<double> delays) GetWeightsAndDelays()
+        {
             List<double> weights = new();
             List<double> delays = new();
 
@@ -166,12 +179,17 @@ namespace SpikepropSharp.Components
                 }
             }
 
-            File.WriteAllText(path, JsonSerializer.Serialize(new List<double>[] { weights, delays }));
+            return (weights, delays);
         }
 
         public void LoadWeightsAndDelays(string path)
         {
             List<double>[] weightsAndDelays = JsonSerializer.Deserialize<List<double>[]>(File.ReadAllText(path))!;
+            SetWeightsAndDelays(weightsAndDelays[0], weightsAndDelays[1]);
+        }
+
+        public void SetWeightsAndDelays(List<double> weights, List<double> delays)
+        {
             int synI = 0;
             foreach (Neuron[] layer in Layers)
             {
@@ -179,12 +197,23 @@ namespace SpikepropSharp.Components
                 {
                     foreach (Synapse synapse in neuron.SynapsesIn)
                     {
-                        synapse.Weight = weightsAndDelays[0][synI];
-                        synapse.Delay = weightsAndDelays[1][synI];
+                        synapse.Weight = weights[synI];
+                        synapse.Delay = delays[synI];
                         synI++;
                     }
                 }
             }
+        }
+
+        public Network Clone()
+        {
+            (List<double> weights, List<double> delays) = GetWeightsAndDelays();
+
+            Network result = new(Rnd);
+            result.Create(NamesInput, NamesHidden, NamesOutput);
+            result.SetWeightsAndDelays(weights, delays);
+
+            return result;
         }
     }
 }

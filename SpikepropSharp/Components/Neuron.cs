@@ -65,14 +65,13 @@
         public void ComputeDeltaWeights(double learningRate) // Eq (9)
         {
             // Foreach syn in
-            for (int synI = 0; synI < SynapsesIn.Length; synI++)
+            Parallel.For(0, SynapsesIn.Length, new ParallelOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount }, synI =>
             {
-                // Foreach spike from this neuron
                 for (int spikeI = 0; spikeI < Spikes.Count; spikeI++)
                 {
                     SynapsesIn[synI].WeightDelta -= learningRate * ComputeDeDt(Spikes[spikeI]) * ComputeDtDw(SynapsesIn[synI], Spikes[spikeI]);
                 }
-            }
+            });
         }
 
         public double ComputeDtDw(Synapse synapse, double spikeThis) // Eq (10)
