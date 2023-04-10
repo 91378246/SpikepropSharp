@@ -64,7 +64,6 @@
 
         public void ComputeDeltaWeights(double learningRate) // Eq (9)
         {
-            // Foreach syn in
             Parallel.For(0, SynapsesIn.Length, new ParallelOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount }, synI =>
             {
                 for (int spikeI = 0; spikeI < Spikes.Count; spikeI++)

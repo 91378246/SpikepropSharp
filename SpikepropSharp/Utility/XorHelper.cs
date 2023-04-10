@@ -54,7 +54,7 @@ namespace SpikepropSharp.Utility
 
             double AvgNrOfEpochs = 0;
             // Multiple trials for statistics
-            Parallel.For(0, TRIALS, new ParallelOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount }, trial =>
+            for (int trial = 0; trial < TRIALS; trial++)
             {
                 ConsoleColor color = GetColorForIndex(trial);
                 Network network = CreateNetwork(rnd);
@@ -80,17 +80,17 @@ namespace SpikepropSharp.Utility
                         sumSquaredError += 0.5 * Math.Pow(output_neuron.Spikes.First() - output_neuron.Clamped, 2);
 
                         // Backward propagation and changing weights (no batch-mode)
-                        foreach (Neuron[] layer in network.Layers)
+                        for (int l = 0; l < network.Layers.Length; l++)
                         {
-                            Parallel.ForEach(layer, neuron =>
+                            for (int n = 0; n < network.Layers[l].Length; n++)
                             {
-                                neuron.ComputeDeltaWeights(LEARNING_RATE);
-                                for (int synI = 0; synI < neuron.SynapsesIn.Length; synI++)
+                                network.Layers[l][n].ComputeDeltaWeights(LEARNING_RATE);
+                                for (int synI = 0; synI < network.Layers[l][n].SynapsesIn.Length; synI++)
                                 {
-                                    neuron.SynapsesIn[synI].Weight += neuron.SynapsesIn[synI].WeightDelta;
-                                    neuron.SynapsesIn[synI].WeightDelta = 0.0;
+                                    network.Layers[l][n].SynapsesIn[synI].Weight += network.Layers[l][n].SynapsesIn[synI].WeightDelta;
+                                    network.Layers[l][n].SynapsesIn[synI].WeightDelta = 0;
                                 }
-                            });
+                            }
                         }
                     }
                     Console.ForegroundColor = color;
@@ -148,7 +148,7 @@ namespace SpikepropSharp.Utility
                 Console.WriteLine($"TRIAL {trial} TEST RESULT");
                 Console.WriteLine(cm.ToString());
                 Console.WriteLine("#############################################################################");
-            });
+            }
 
             Console.Write("Average nr of epochs per trial: ");
             Console.WriteLine(AvgNrOfEpochs);

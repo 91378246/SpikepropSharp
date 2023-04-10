@@ -19,7 +19,7 @@ namespace SpikepropSharp.Utility
         private const double SPIKE_TIME_FALSE = 16;
 
         // Network
-        private const int INPUT_SIZE = 15;                          // 10 -> 15:
+        private const int INPUT_SIZE = 10;                          // 10 -> 15: Accuracy reduces, train time strongly increases
         private const int HIDDEN_SIZE = 2;                          // 2 -> 3: Reduces accuracy by about 5%, increases train time by about 50%, 2 -> 1: Reduces accuracy by about 4%
         private const int T_MAX = 40;                               // 40 -> 30: Reduces accuracy by about 4%, decreases train time by about 30%
         private const int TRIALS = 1;
@@ -324,7 +324,7 @@ namespace SpikepropSharp.Utility
                         break;
                     }
 
-                    if (false && epoch != 0 && epoch % epochsQuarter == 0)
+                    if (epoch != 0 && epoch % epochsQuarter == 0)
                     {
                         // Test and validate
                         if (runTestsInBetween)
