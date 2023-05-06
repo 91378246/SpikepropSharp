@@ -5,7 +5,8 @@ namespace SpikepropSharp.Data
 {
     public sealed class ValidationResult
     {
-        private const string PYTHON_PATH = @"C:\Users\janha\AppData\Local\Programs\Python\Python311\python.exe";
+        private const string PYTHON_PATH_0 = @"C:\Users\janha\AppData\Local\Programs\Python\Python311\python.exe";
+        private const string PYTHON_PATH_1 = @"C:\Users\janha\AppData\Local\Programs\Python\Python310\python.exe";
 
         public double[] Errors { get; }
         public double[] EegRaw { get; }
@@ -40,7 +41,7 @@ namespace SpikepropSharp.Data
             string pythonFilePath = Path.GetFullPath("Data/visualize.py");
             ProcessStartInfo start = new()
             {
-                FileName = PYTHON_PATH,
+                FileName = File.Exists(PYTHON_PATH_0) ? PYTHON_PATH_0 : PYTHON_PATH_1,
                 Arguments = $"{pythonFilePath} {dataFilePath}",
                 UseShellExecute = false,
                 WorkingDirectory = ""

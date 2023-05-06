@@ -123,7 +123,7 @@ namespace SpikepropSharp.Components
                 Layers[(int)Layer.Input][i].Fire(sample.Input[i]);
             }
 
-            Layers[(int)Layer.Output][0].Clamped = sample.Output;
+            Layers[(int)Layer.Output][0].FixedOutput = sample.Output;
         }
 
         /// <summary>
@@ -133,6 +133,7 @@ namespace SpikepropSharp.Components
         /// <param name="timestep">For how much to increase t each time</param>
         public void Forward(double tMax, double timestep)
         {
+            // Break if we have atleast one spike for each output neuron
             bool NotAllOutputsSpiked() => Layers[(int)Layer.Output].Where(n => n.Spikes.Count == 0).Any();
 
             for (double t = 0; t < tMax && NotAllOutputsSpiked(); t += timestep)

@@ -77,7 +77,7 @@ namespace SpikepropSharp.Utility
                             sumSquaredError = epoch = (int)1e9;
                             break;
                         }
-                        sumSquaredError += 0.5 * Math.Pow(output_neuron.Spikes.First() - output_neuron.Clamped, 2);
+                        sumSquaredError += 0.5 * Math.Pow(output_neuron.Spikes.First() - output_neuron.FixedOutput, 2);
 
                         // Backward propagation and changing weights (no batch-mode)
                         for (int l = 0; l < network.Layers.Length; l++)

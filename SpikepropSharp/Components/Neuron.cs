@@ -8,7 +8,7 @@
         private const double THRESHOLD = 1;
 
         public string Name = "";
-        public double Clamped { get; set; }
+        public double FixedOutput { get; set; }
         public Synapse[] SynapsesIn { get; set; } = Array.Empty<Synapse>();
         public Neuron[] NeuronsPost { get; set; } = Array.Empty<Neuron>();
         public List<double> Spikes { get; set; } = new(); // Eq (1)
@@ -133,15 +133,15 @@
 
         public double ComputeDeDt(double spikeThis) // Eq (13)
         {
-            if (Clamped > 0)
+            if (FixedOutput > 0)
             {
                 if (spikeThis == Spikes[0])
                 {
-                    return spikeThis - Clamped;
+                    return spikeThis - FixedOutput;
                 }
             }
 
-            double deDt = 0.0;
+            double deDt = 0;
 
             // Foreach neuron post
             for (int neuronI = 0; neuronI < NeuronsPost.Length; neuronI++)

@@ -290,10 +290,10 @@ namespace SpikepropSharp.Utility
                             sumSquaredError = epoch = (int)1e9;
                             break;
                         }
-                        sumSquaredError += 0.5 * Math.Pow(output_neuron.Spikes[0] - output_neuron.Clamped, 2);
+                        sumSquaredError += 0.5 * Math.Pow(output_neuron.Spikes[0] - output_neuron.FixedOutput, 2);
 
                         // Backward propagation
-                        for (int l = 0; l < networks[trial].Layers.Length; l++)
+                        for (int l = networks[trial].Layers.Length - 1; l >= 1; l--)
                         {
                             for (int n = 0; n < networks[trial].Layers[l].Length; n++)
                             {
