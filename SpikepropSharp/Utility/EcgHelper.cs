@@ -20,7 +20,7 @@ namespace SpikepropSharp.Utility
 
         // Network
         private const int INPUT_SIZE = 10;                          // 10 -> 15: Accuracy reduces, train time strongly increases
-        private const int HIDDEN_SIZE = 2;                          // 2 -> 3: Reduces accuracy by about 5%, increases train time by about 50%, 2 -> 1: Reduces accuracy by about 4%
+        private const int HIDDEN_SIZE = 1;                          // 2 -> 3: Reduces accuracy by about 5%, increases train time by about 50%, 2 -> 1: Reduces accuracy by about 4%
         private const int T_MAX = 40;                               // 40 -> 30: Reduces accuracy by about 4%, decreases train time by about 30%
         private const int TRIALS = 1;
         private const int EPOCHS = 500;
@@ -248,7 +248,7 @@ namespace SpikepropSharp.Utility
                 Neuron output_neuron = networks[trial].Layers[(int)Layer.Output][0];
 
                 // Load a prev saved one
-                string prevWeightsAndDelaysFile = $"network_0_100423.json";
+                string prevWeightsAndDelaysFile = $"network_0_060523.json";
                 if (loadPrevWeights && File.Exists(prevWeightsAndDelaysFile))
                 {
                     networks[trial].LoadWeightsAndDelays(prevWeightsAndDelaysFile);

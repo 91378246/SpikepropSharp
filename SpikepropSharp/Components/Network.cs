@@ -12,6 +12,8 @@ namespace SpikepropSharp.Components
 
     public sealed class Network
     {
+        private const int SYN_PER_NEURON = 16;
+
         public Neuron[][] Layers { get; private set; }
         public double CurrentError { get; set; } = double.MaxValue;
 
@@ -64,9 +66,9 @@ namespace SpikepropSharp.Components
                 static void ConnectNeurons(Neuron pre, Neuron post)
                 {
                     List<Synapse> synPost = post.SynapsesIn.ToList();
-                    for (double delay_i = 16; delay_i > 0; delay_i--)
+                    for (double delay_i = SYN_PER_NEURON; delay_i > 0; delay_i--)
                     {
-                        synPost.Add(new Synapse(pre, 0, delay_i + 1.0));
+                        synPost.Add(new Synapse(pre, 0, delay_i + 1));
                     }
                     post.SynapsesIn = synPost.ToArray();
 
