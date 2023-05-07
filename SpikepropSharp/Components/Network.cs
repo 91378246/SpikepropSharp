@@ -18,11 +18,11 @@ namespace SpikepropSharp.Components
         public double CurrentError { get; set; } = double.MaxValue;
 
         private Random Rnd { get; }
-        private string[] NamesInput { get; set; }
-        private string[] NamesHidden { get; set; }
-        private string[] NamesOutput { get; set; }
+        private string[] NamesInput { get; set; } = Array.Empty<string>();
+        private string[] NamesHidden { get; set; } = Array.Empty<string>();
+		private string[] NamesOutput { get; set; } = Array.Empty<string>();
 
-        public Network(Random rnd)
+		public Network(Random rnd)
         {
             Rnd = rnd;
             Layers = new Neuron[3][];

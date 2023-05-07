@@ -22,7 +22,7 @@ if __name__ == "__main__":
 
     # Bars
     # Labels raw
-    ax1.bar(data["EegLabelsRaw"], len(data["EegLabelsRaw"]) * [1], width=5, color="r")
+    # ax1.bar(data["EegLabelsRaw"], len(data["EegLabelsRaw"]) * [1], width=5, color="r")
     # Spikes pos
     spikes_pos = [float(k) for k in data["EcgSignalSpikesTrain"] if data["EcgSignalSpikesTrain"][k]]
     ax1.bar(spikes_pos, len(spikes_pos) * [1], width=5, color="g")
@@ -35,7 +35,7 @@ if __name__ == "__main__":
     ax1.bar(predictions_true, len(predictions_true) * [-.25], width=predictionSpan, color="b")
     # Labels
     predictions_true = [p["TStart"] for p in data["Predictions"] if p["Label"]]
-    ax1.bar(predictions_true, len(predictions_true) * [.25], width=predictionSpan, color="m")
+    ax1.bar(predictions_true, len(predictions_true) * [.25], width=predictionSpan, color="r")
 
     ax1.set_xlabel("t")
     ax1.set_ylabel("Spikes", color="r")
@@ -50,10 +50,9 @@ if __name__ == "__main__":
     custom_lines = [Line2D([0], [0], color="k", lw=4),
                     Line2D([0], [0], color="r", lw=4),
                     Line2D([0], [0], color="g", lw=4),
-                    Line2D([0], [0], color="b", lw=4),
-                    Line2D([0], [0], color="m", lw=4)]
-    plt.legend(custom_lines, ["EEG raw", "Label Raw", "Spike pos/neg", "Prediction", "Label"])
-    plt.title("Validaiton result")
+                    Line2D([0], [0], color="b", lw=4)]
+    plt.legend(custom_lines, ["EEG raw", "Label", "Spike pos/neg", "Prediction"])
+    plt.title("Test result")
     plt.show()
 
     file.close()
