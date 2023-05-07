@@ -234,7 +234,8 @@ namespace SpikepropSharp.ComponentsRecurrent
 
             for (int i = 0; i < sample.Input.Length; i++)
             {
-                //Layers[(int)Layer.Input][i].Fire(sample.Input[i]);
+                throw new NotImplementedException();
+                //Layers[(int)Layer.Input][i].Fire(sample.Input.Keys[i].Time);
             }
 
             Layers[(int)Layer.Output][0].clamped = sample.Output;

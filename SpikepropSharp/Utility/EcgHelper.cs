@@ -234,7 +234,7 @@ namespace SpikepropSharp.Utility
 			return network;
 		}
 
-		public static void RunTest(Random rnd, bool runTestsInBetween = true, bool loadPrevWeights = true)
+		public static void RunTest(Random rnd, bool runTestsInBetween = true, bool loadPrevWeights = false)
 		{
 			Console.WriteLine("Loading data...");
 			LoadData();
