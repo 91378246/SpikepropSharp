@@ -9,85 +9,87 @@
 
   <ItemGroup>
     <PackageReference Include="MatFileHandler" Version="1.3.0" />
+    <PackageReference Include="MathNet.Filtering" Version="0.7.0" />
+    <PackageReference Include="MathNet.Numerics" Version="5.0.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="Data\0_adc.mat">
+    <None Update="Data\Samples\0_adc.mat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Data\0_threshold.mat">
+    <None Update="Data\Samples\0_threshold.mat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Data\1_adc.mat">
+    <None Update="Data\Samples\1_adc.mat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Data\1_threshold.mat">
+    <None Update="Data\Samples\1_threshold.mat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Data\ecg_0.mat">
+    <None Update="Data\Samples\ecg_0.mat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Data\ecg_0_ann.mat">
+    <None Update="Data\Samples\ecg_0_ann.mat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Data\ecg_1.mat">
+    <None Update="Data\Samples\ecg_1.mat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Data\ecg_10.mat">
+    <None Update="Data\Samples\ecg_10.mat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Data\ecg_10_ann.mat">
+    <None Update="Data\Samples\ecg_10_ann.mat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Data\ecg_1_ann.mat">
+    <None Update="Data\Samples\ecg_1_ann.mat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Data\ecg_2.mat">
+    <None Update="Data\Samples\ecg_2.mat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Data\ecg_2_ann.mat">
+    <None Update="Data\Samples\ecg_2_ann.mat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Data\ecg_3.mat">
+    <None Update="Data\Samples\ecg_3.mat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Data\ecg_3_ann.mat">
+    <None Update="Data\Samples\ecg_3_ann.mat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Data\ecg_4.mat">
+    <None Update="Data\Samples\ecg_4.mat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Data\ecg_4_ann.mat">
+    <None Update="Data\Samples\ecg_4_ann.mat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Data\ecg_5.mat">
+    <None Update="Data\Samples\ecg_5.mat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Data\ecg_5_ann.mat">
+    <None Update="Data\Samples\ecg_5_ann.mat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Data\ecg_6.mat">
+    <None Update="Data\Samples\ecg_6.mat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Data\ecg_6_ann.mat">
+    <None Update="Data\Samples\ecg_6_ann.mat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Data\ecg_7.mat">
+    <None Update="Data\Samples\ecg_7.mat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Data\ecg_7_ann.mat">
+    <None Update="Data\Samples\ecg_7_ann.mat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Data\ecg_8.mat">
+    <None Update="Data\Samples\ecg_8.mat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Data\ecg_8_ann.mat">
+    <None Update="Data\Samples\ecg_8_ann.mat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Data\ecg_9.mat">
+    <None Update="Data\Samples\ecg_9.mat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Data\ecg_9_ann.mat">
+    <None Update="Data\Samples\ecg_9_ann.mat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="Data\visualize.py">

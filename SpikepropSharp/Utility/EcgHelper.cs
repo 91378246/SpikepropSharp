@@ -1,5 +1,4 @@
-﻿using MatFileHandler;
-using SpikepropSharp.Components;
+﻿using SpikepropSharp.Components;
 using SpikepropSharp.Data;
 using System.Diagnostics;
 
@@ -7,207 +6,18 @@ namespace SpikepropSharp.Utility
 {
 	public static class EcgHelper
 	{
-		// Data
-		private const string DATA_DIR_PATH = "Data";
-		private const int SAMPLE_INDEX_TRAIN = 0;
-		private const int SAMPLE_INDEX_TEST = 1;
-		private const int DATASET_TRAIN_SIZE = 4;
-		private const int DATASET_TEST_SIZE = 500;
-		private const double SOD_SAMPLING_THRESHOLD = 1;
-		private const double SPIKE_TIME_INPUT = 6;
-		private const double SPIKE_TIME_TRUE = 10;
-		private const double SPIKE_TIME_FALSE = 16;					// 16 -> 12: Reduces accuracy and train time by about half 
-
 		// Network
 		private const int INPUT_SIZE = 10;                          // 10 -> 15: Accuracy reduces, train time strongly increases
 		private const int HIDDEN_SIZE = 1;                          // 2 -> 3: Reduces accuracy by about 5%, increases train time by about 50%, 2 -> 1: Reduces accuracy by about 4%
 		private const int T_MAX = 40;                               // 40 -> 30: Reduces accuracy by about 4%, decreases train time by about 30%
 		private const int TRIALS = 1;
-		private const int EPOCHS = 500;
-		private const int VAL_RUNS = 100;
+		private const int EPOCHS = 1;//500
+		private const int VAL_RUNS = 10;
 		private const double TIMESTEP = 0.1;
 		private const double LEARNING_RATE = 1e-2;                  // 1e-2 -> 1e-3:
 		private const double ADAPTIVE_LEARNING_RATE_FACTOR = 0.01;
 
-		/// <summary>
-		/// Contains the from the SOD-sampling resulting spikes for the full "ecg_{SAMPLE_INDEX_TRAIN}.mat" data file. 
-		/// [spikeTime:double] = (positive/negative spike):bool
-		/// </summary>
-		private static Dictionary<double, bool> EcgSignalSpikesTrain { get; set; } = null!;
-		private static double[] EcgSignalLabelsTrain { get; set; } = null!;
-		/// <summary>
-		/// Contains the from the SOD-sampling resulting spikes for the full "ecg_{SAMPLE_INDEX_TEST}.mat" data file. 
-		/// [spikeTime:double] = (positive/negative spike):bool
-		/// </summary>
-		private static Dictionary<double, bool> EcgSignalSpikesTest { get; set; } = null!;
-		private static double[] EcgSignalLabelsTest { get; set; } = null!;
-
-		private static void LoadData()
-		{
-			// Train
-			double[] ecgSignalRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, $"ecg_{SAMPLE_INDEX_TRAIN}.mat"), "signal");
-			EcgSignalSpikesTrain = ApplySodSampling(ecgSignalRaw, SOD_SAMPLING_THRESHOLD);
-
-			double[] ecgSignalLabelsRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, $"ecg_{SAMPLE_INDEX_TRAIN}_ann.mat"), "ann").ToArray();
-			EcgSignalLabelsTrain = ConvertAnnotationTimestampsToLabels(ecgSignalLabelsRaw).ToArray();
-
-			// Test
-			ecgSignalRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, $"ecg_{SAMPLE_INDEX_TEST}.mat"), "signal");
-			EcgSignalSpikesTest = ApplySodSampling(ecgSignalRaw, SOD_SAMPLING_THRESHOLD);
-
-			ecgSignalLabelsRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, $"ecg_{SAMPLE_INDEX_TEST}_ann.mat"), "ann").ToArray();
-			EcgSignalLabelsTest = ConvertAnnotationTimestampsToLabels(ecgSignalLabelsRaw).ToArray();
-
-			/// <summary>
-			/// Applies send-on-delta sampling on the given ecg signal and returns the resulting spikes.
-			/// Returns it as a set of spike times in the format [spikeTime:double] = (positive/negative spike):bool
-			/// </summary>
-			/// <param name="ecgSignal"></param>
-			/// <param name="threshold"></param>
-			static Dictionary<double, bool> ApplySodSampling(double[] ecgSignal, double threshold)
-			{
-				double yLevel = ecgSignal[0];
-				Dictionary<double, bool> spikes = new();
-
-				for (int i = 0; i < ecgSignal.Length; i++)
-				{
-					double diff = ecgSignal[i] - yLevel;
-					if (Math.Abs(diff) > threshold)
-					{
-						spikes[i] = Math.Sign(diff) > 0;
-						yLevel += Math.Sign(diff) * threshold;
-					}
-				}
-
-				return spikes;
-			}
-
-			/// <summary>
-			/// 
-			/// </summary>
-			/// <param name="annotationTimestamps"></param>
-			/// <returns></returns>
-			static List<double> ConvertAnnotationTimestampsToLabels(double[] annotationTimestamps)
-			{
-				List<double> spikes = new();
-				spikes.AddRange(annotationTimestamps);
-
-				return spikes;
-			}
-		}
-
-		/// <summary>
-		/// Loads a field of the specified matlab file.
-		/// Returns the first column of the specified field as the given type
-		/// </summary>
-		/// <param name="filePath">The path to the matlab file</param>
-		/// <param name="fieldName">The name of the data field within the matlab file</param>
-		/// <returns></returns>
-		/// <exception cref="FormatException"></exception>
-		private static double[] LoadMatlabEcgData(string filePath, string fieldName)
-		{
-			using FileStream fileStream = new(filePath, FileMode.Open);
-			MatFileReader reader = new(fileStream);
-			IMatFile matFile = reader.Read();
-
-			return matFile[fieldName].Value.ConvertToDoubleArray()!;
-		}
-
-		private static Sample[] GetDataset(Random rnd, bool validation = false, int datasetSize = DATASET_TRAIN_SIZE)
-		{
-			// if (datasetSize % 2 != 0)
-			// {
-			//     throw new ArgumentException("DatasetSize has to be even", nameof(datasetSize));
-			// }
-
-			Sample[] dataset = new Sample[datasetSize];
-			for (int i = 0; i < dataset.Length; i++)
-			{
-				int t = 0;
-				bool sampleIsTrue = i % 2 == 0;
-
-				// Get a random label timestamp
-				if (sampleIsTrue)
-				{
-					// Get a random label time
-					double labelT = (validation ? EcgSignalLabelsTest : EcgSignalLabelsTrain)[rnd.Next((validation ? EcgSignalLabelsTest : EcgSignalLabelsTrain).Length)];
-
-					// Set t to be equal or less than labelT
-					t = (int)labelT - rnd.Next(rnd.Next(INPUT_SIZE / 2));
-				}
-				// Get a random non label timestamp
-				else
-				{
-					while (t == 0)
-					{
-						// Get a random input time
-						t = rnd.Next((int)(validation ? EcgSignalSpikesTest : EcgSignalSpikesTrain).Last().Key - INPUT_SIZE);
-
-						// Set t to be equal or less than that input time
-						t -= rnd.Next(rnd.Next(INPUT_SIZE / 2));
-
-						// Make sure the sample isn't true
-						if ((validation ? EcgSignalLabelsTest : EcgSignalLabelsTrain).FirstOrDefault(l => l >= t && l < t + INPUT_SIZE) != default)
-						{
-							t = 0;
-						}
-					}
-				}
-
-				// Get the input
-				List<double> input = new();
-				while (input.Count < INPUT_SIZE)
-				{
-					input.Add((validation ? EcgSignalSpikesTest : EcgSignalSpikesTrain).ContainsKey(t++) ? SPIKE_TIME_INPUT : 0);
-				}
-				// Bias
-				input.Add(0);
-
-				// bool sampleIsTrue = EcgSignalLabelsTrain.FirstOrDefault(l => l >= t - INPUT_SIZE && l < t) != default;
-				dataset[i] = new Sample(input.ToArray(), sampleIsTrue ? SPIKE_TIME_TRUE : SPIKE_TIME_FALSE);
-			}
-
-			Shuffle(rnd, dataset);
-			return dataset;
-
-			static T[] Shuffle<T>(Random rnd, T[] array)
-			{
-				int n = array.Length;
-				while (n > 1)
-				{
-					int k = rnd.Next(n--);
-					(array[k], array[n]) = (array[n], array[k]);
-				}
-
-				return array;
-			}
-		}
-
-		private static Sample[] GetTestDataset()
-		{
-			Sample[] dataset = new Sample[DATASET_TEST_SIZE];
-			for (int i = 0; i < dataset.Length; i++)
-			{
-				int t = i * INPUT_SIZE;
-				List<double> input = new();
-				while (input.Count < INPUT_SIZE)
-				{
-					input.Add(EcgSignalSpikesTest.ContainsKey(t++) ? SPIKE_TIME_INPUT : 0);
-				}
-				// Bias
-				input.Add(0);
-
-
-				dataset[i] = new Sample(
-					input: input.ToArray(),
-					output: EcgSignalLabelsTest.FirstOrDefault(l => l >= t && l < t + INPUT_SIZE) != default ? SPIKE_TIME_TRUE : SPIKE_TIME_FALSE);
-			}
-
-			return dataset;
-		}
-
-		private static bool ConvertSpikeTimeToResult(double prediction) =>
-			Math.Abs(prediction - SPIKE_TIME_TRUE) < Math.Abs(prediction - SPIKE_TIME_FALSE);
+		private static DataManager DataManager { get; set; } = null!;
 
 		private static Network CreateNetwork(Random rnd)
 		{
@@ -237,7 +47,7 @@ namespace SpikepropSharp.Utility
 		public static void RunTest(Random rnd, bool runTestsInBetween = true, bool loadPrevWeights = false)
 		{
 			Console.WriteLine("Loading data...");
-			LoadData();
+			DataManager = new(loadEcgData: true);
 
 			Console.WriteLine("Running ECG test\n");
 
@@ -281,7 +91,7 @@ namespace SpikepropSharp.Utility
 					double sumSquaredError = 0;
 					// Debug.WriteLine($"LR[{epoch}]: {adaptedLearningRate}");
 
-					Sample[] samples = GetDataset(rnd);
+					Sample[] samples = DataManager.GetRndSamples(rnd, INPUT_SIZE, DataSet.Train);
 					for (int sampleI = 0; sampleI < samples.Length; sampleI++)
 					{
 						// Debug.WriteLine($"Processing sample {sampleI + 1}/{DATASET_TRAIN_SIZE}");
@@ -373,12 +183,12 @@ namespace SpikepropSharp.Utility
 				ConfusionMatrix cm = new();
 				for (int valRun = 0; valRun < VAL_RUNS; valRun++)
 				{
-					Sample[] samples = GetDataset(rnd, validation: true);
+					Sample[] samples = DataManager.GetRndSamples(rnd, INPUT_SIZE, DataSet.Validate);
 					for (int sampleI = 0; sampleI < samples.Length; sampleI++)
 					{
 						double predictionRaw = network.Predict(samples[sampleI], T_MAX, TIMESTEP);
-						bool prediction = ConvertSpikeTimeToResult(predictionRaw);
-						bool label = ConvertSpikeTimeToResult(samples[sampleI].Output);
+						bool prediction = DataManager.ConvertSpikeTimeToResult(predictionRaw);
+						bool label = DataManager.ConvertSpikeTimeToResult(samples[sampleI].Output);
 
 						if (prediction)
 						{
@@ -420,14 +230,6 @@ namespace SpikepropSharp.Utility
 			{
 				Console.WriteLine("#############################################################################");
 				Console.WriteLine("CONFIG DATA:");
-				Console.WriteLine($"\tSAMPLE_INDEX_TRAIN = {SAMPLE_INDEX_TRAIN}");
-				Console.WriteLine($"\tSAMPLE_INDEX_TEST = {SAMPLE_INDEX_TEST}");
-				Console.WriteLine($"\tDATASET_TRAIN_SIZE = {DATASET_TRAIN_SIZE}");
-				Console.WriteLine($"\tDATASET_VALIDATE_SIZE = {DATASET_TEST_SIZE}");
-				Console.WriteLine($"\tSOD_SAMPLING_THRESHOLD = {SOD_SAMPLING_THRESHOLD}");
-				Console.WriteLine($"\tSPIKE_TIME_INPUT = {SPIKE_TIME_INPUT}");
-				Console.WriteLine($"\tSPIKE_TIME_TRUE = {SPIKE_TIME_TRUE}");
-				Console.WriteLine($"\tSPIKE_TIME_FALSE = {SPIKE_TIME_FALSE}");
 				Console.WriteLine("CONFIG NETWORK:");
 				Console.WriteLine($"\tINPUT_SIZE = {INPUT_SIZE}");
 				Console.WriteLine($"\tHIDDEN_SIZE = {HIDDEN_SIZE}");
@@ -444,17 +246,21 @@ namespace SpikepropSharp.Utility
 			void Test(Network bestNetwork, int trial, bool plot)
 			{
 				Console.WriteLine("Testing ... ");
-				double lastTVal = (DATASET_TEST_SIZE + 1) * INPUT_SIZE;
-				double[] ecgRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, $"ecg_{SAMPLE_INDEX_TEST}.mat"), "signal").ToArray()[..(int)lastTVal];
-				double[] ecgLabelsRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, $"ecg_{SAMPLE_INDEX_TEST}_ann.mat"), "ann").Where(t => t < lastTVal).ToArray();
-				Dictionary<double, bool> ecgSignalsSpikeTrain = EcgSignalSpikesTest.Where(kv => kv.Key <= lastTVal).ToDictionary(x => x.Key, x => x.Value);
-				ValidationResult result = new(errors[trial].ToArray(), ecgRaw, ecgLabelsRaw, ecgSignalsSpikeTrain);
+				Sample[] testDataSet = DataManager.GetSamples(0, INPUT_SIZE, DataSet.Test);
+				double[] ecgRaw = DataManager.GetRawData(DataSet.Test, testDataSet.Length * INPUT_SIZE, preprocess: true);
+				Dictionary<double, bool> ecgSignalsSpikeTrain = DataManager.GetSpikesOfDataset(DataSet.Test, testDataSet.Length);
+				ValidationResult result = new(
+					errors: errors[trial].ToArray(), 
+					ecgRaw: ecgRaw, 
+				    ecgSignalSpikesTrain: ecgSignalsSpikeTrain.Where(s => s.Key < ecgRaw.Length).ToDictionary(k => k.Key, v => v.Value)
+				);
+
 				int sampleI = 0;
-				foreach (Sample sample in GetTestDataset())
+				foreach (Sample sample in testDataSet)
 				{
 					double predictionRaw = bestNetwork.Predict(sample, T_MAX, TIMESTEP);
-					bool prediction = ConvertSpikeTimeToResult(predictionRaw);
-					bool label = ConvertSpikeTimeToResult(sample.Output);
+					bool prediction = DataManager.ConvertSpikeTimeToResult(predictionRaw);
+					bool label = DataManager.ConvertSpikeTimeToResult(sample.Output);
 
 					result.Predictions.Add(new Prediction(sampleI * INPUT_SIZE, sampleI * INPUT_SIZE + INPUT_SIZE, prediction, label));
 					sampleI++;

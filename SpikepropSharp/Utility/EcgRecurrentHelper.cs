@@ -415,7 +415,7 @@ namespace SpikepropSharp.Utility
                 double[] eegRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, $"ecg_{SAMPLE_INDEX}.mat"), "signal").ToArray()[..(int)lastTVal];
                 double[] ecgLabelsRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, $"ecg_{SAMPLE_INDEX}_ann.mat"), "ann").Where(t => t < lastTVal).ToArray();
                 Dictionary<double, bool> eegSignalsSpikeTrain = EcgSignalSpikesTrain.Where(kv => kv.Key <= lastTVal).ToDictionary(x => x.Key, x => x.Value);
-                ValidationResult result = new(errors[bestNetwork].ToArray(), eegRaw, ecgLabelsRaw, eegSignalsSpikeTrain);
+                ValidationResult result = new(errors[bestNetwork].ToArray(), eegRaw, eegSignalsSpikeTrain);
                 int sampleI = 0;
                 foreach (Sample sample in GetValidationDataset())
                 {
