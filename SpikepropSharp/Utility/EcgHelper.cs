@@ -1,4 +1,5 @@
-﻿using SpikepropSharp.Components;
+﻿using MathNet.Numerics;
+using SpikepropSharp.Components;
 using SpikepropSharp.Data;
 using System.Diagnostics;
 
@@ -8,10 +9,10 @@ namespace SpikepropSharp.Utility
 	{
 		// Network
 		private const int INPUT_SIZE = 10;                          // 10 -> 15: Accuracy reduces, train time strongly increases
-		private const int HIDDEN_SIZE = 1;                          // 2 -> 3: Reduces accuracy by about 5%, increases train time by about 50%, 2 -> 1: Reduces accuracy by about 4%
+		private const int HIDDEN_SIZE = 2;                          // 2 -> 3: Reduces accuracy by about 5%, increases train time by about 50%, 2 -> 1: Reduces accuracy by about 4%
 		private const int T_MAX = 40;                               // 40 -> 30: Reduces accuracy by about 4%, decreases train time by about 30%
 		private const int TRIALS = 1;
-		private const int EPOCHS = 1;//500
+		private const int EPOCHS = 500;
 		private const int VAL_RUNS = 10;
 		private const double TIMESTEP = 0.1;
 		private const double LEARNING_RATE = 1e-2;                  // 1e-2 -> 1e-3:
@@ -72,8 +73,8 @@ namespace SpikepropSharp.Utility
 					networks[trial].LoadWeightsAndDelays(prevWeightsAndDelaysFile);
 					Console.WriteLine($"[T{trial}] loaded weights and delays from {prevWeightsAndDelaysFile}");
 
-					Validate(networks[trial], color, trial, -1);
-					Test(networks[trial], trial, plot: true);
+					Validate(rnd, networks[trial], color, trial, -1);
+					Test(errors[trial].ToArray(), networks[trial], trial, plot: true);
 					Debugger.Break();
 				}
 
@@ -147,10 +148,10 @@ namespace SpikepropSharp.Utility
 						// Test and validate
 						if (runTestsInBetween)
 						{
-							Validate(networks[trial], color, trial, epoch);
+							Validate(rnd, networks[trial], color, trial, epoch);
 						}
 
-						Test(networks[trial], trial, plot: false);
+						Test(errors[trial].ToArray(), networks[trial], trial, plot: true);
 
 						// Adaptive learning rate
 						double oldLr = adaptedLearningRate;
@@ -166,107 +167,108 @@ namespace SpikepropSharp.Utility
 			Console.WriteLine("\n#############################################################################");
 
 			PrintConfiguration();
-			Validate(networkBest, ConsoleColor.Gray, -1, EPOCHS - 1);
-			Test(networkBest, 0, plot: true);
+			Validate(rnd, networkBest, ConsoleColor.Gray, -1, EPOCHS - 1);
+			int bestTrial = Array.IndexOf(networks, networkBest);
+			Test(errors[bestTrial].ToArray(), networkBest, bestTrial, plot: true);
 
 			Console.WriteLine("Done");
 			Console.ReadLine();
 
 			static ConsoleColor GetColorForIndex(int i) =>
-				(ConsoleColor)Enum.GetValues(typeof(ConsoleColor)).GetValue(i + 2)!;
+				(ConsoleColor)Enum.GetValues(typeof(ConsoleColor)).GetValue(i + 2)!;			
+		}
 
-			void Validate(Network network, ConsoleColor color, int trial, int epoch)
+		private static void Validate(Random rnd, Network network, ConsoleColor color, int trial, int epoch)
+		{
+			Console.WriteLine($"[T{trial}] Running {VAL_RUNS} validations ...");
+
+			// Test
+			ConfusionMatrix cm = new();
+			for (int valRun = 0; valRun < VAL_RUNS; valRun++)
 			{
-				Console.WriteLine($"[T{trial}] Running {VAL_RUNS} validations ...");
-
-				// Test
-				ConfusionMatrix cm = new();
-				for (int valRun = 0; valRun < VAL_RUNS; valRun++)
+				Sample[] samples = DataManager.GetRndSamples(rnd, INPUT_SIZE, DataSet.Validate);
+				for (int sampleI = 0; sampleI < samples.Length; sampleI++)
 				{
-					Sample[] samples = DataManager.GetRndSamples(rnd, INPUT_SIZE, DataSet.Validate);
-					for (int sampleI = 0; sampleI < samples.Length; sampleI++)
-					{
-						double predictionRaw = network.Predict(samples[sampleI], T_MAX, TIMESTEP);
-						bool prediction = DataManager.ConvertSpikeTimeToResult(predictionRaw);
-						bool label = DataManager.ConvertSpikeTimeToResult(samples[sampleI].Output);
+					double predictionRaw = network.Predict(samples[sampleI], T_MAX, TIMESTEP);
+					bool prediction = DataManager.ConvertSpikeTimeToResult(predictionRaw);
+					bool label = DataManager.ConvertSpikeTimeToResult(samples[sampleI].Output);
 
-						if (prediction)
+					if (prediction)
+					{
+						// TP
+						if (label)
 						{
-							// TP
-							if (label)
-							{
-								cm.TruePositives++;
-							}
-							// FP
-							else
-							{
-								cm.FalsePositives++;
-							}
+							cm.TruePositives++;
 						}
+						// FP
 						else
 						{
-							// FN
-							if (label)
-							{
-								cm.FalseNegatives++;
-							}
-							// TN
-							else
-							{
-								cm.TrueNegatives++;
-							}
+							cm.FalsePositives++;
+						}
+					}
+					else
+					{
+						// FN
+						if (label)
+						{
+							cm.FalseNegatives++;
+						}
+						// TN
+						else
+						{
+							cm.TrueNegatives++;
 						}
 					}
 				}
-
-				Console.ForegroundColor = color;
-				Console.WriteLine("#############################################################################");
-				Console.WriteLine($"TRIAL {trial} EPOCH {epoch} VALIDATION RESULT");
-				Console.WriteLine(cm.ToString());
-				Console.WriteLine("#############################################################################");
 			}
 
-			void PrintConfiguration()
+			Console.ForegroundColor = color;
+			Console.WriteLine("#############################################################################");
+			Console.WriteLine($"TRIAL {trial} EPOCH {epoch} VALIDATION RESULT");
+			Console.WriteLine(cm.ToString());
+			Console.WriteLine("#############################################################################");
+		}
+
+		private static void PrintConfiguration()
+		{
+			Console.WriteLine("#############################################################################");
+			Console.WriteLine("CONFIG DATA:");
+			Console.WriteLine("CONFIG NETWORK:");
+			Console.WriteLine($"\tINPUT_SIZE = {INPUT_SIZE}");
+			Console.WriteLine($"\tHIDDEN_SIZE = {HIDDEN_SIZE}");
+			Console.WriteLine($"\tT_MAX = {T_MAX}");
+			Console.WriteLine($"\tTRIALS = {TRIALS}");
+			Console.WriteLine($"\tEPOCHS = {EPOCHS}");
+			Console.WriteLine($"\tTEST_RUNS = {VAL_RUNS}");
+			Console.WriteLine($"\tTIMESTEP = {TIMESTEP}");
+			Console.WriteLine($"\tLEARNING_RATE = {LEARNING_RATE}");
+			Console.WriteLine($"\tADAPTIVE_LEARNING_RATE_FACTOR = {ADAPTIVE_LEARNING_RATE_FACTOR}");
+			Console.WriteLine("#############################################################################");
+		}
+
+		private static void Test(double[] errors, Network bestNetwork, int trial, bool plot)
+		{
+			Console.WriteLine("Testing ... ");
+			Sample[] testDataSet = DataManager.GetSamples(0, INPUT_SIZE, DataSet.Test);
+			double[] ecgRaw = DataManager.GetRawData(DataSet.Test, testDataSet.Length * INPUT_SIZE, preprocess: true);
+			Dictionary<double, bool> ecgSignalsSpikeTrain = DataManager.GetSpikesOfDataset(DataSet.Test, testDataSet.Length);
+			ValidationResult result = new(
+				errors: errors,
+				ecgRaw: ecgRaw,
+				ecgSignalSpikesTrain: ecgSignalsSpikeTrain.Where(s => s.Key < ecgRaw.Length).ToDictionary(k => k.Key, v => v.Value)
+			);
+
+			int sampleI = 0;
+			foreach (Sample sample in testDataSet)
 			{
-				Console.WriteLine("#############################################################################");
-				Console.WriteLine("CONFIG DATA:");
-				Console.WriteLine("CONFIG NETWORK:");
-				Console.WriteLine($"\tINPUT_SIZE = {INPUT_SIZE}");
-				Console.WriteLine($"\tHIDDEN_SIZE = {HIDDEN_SIZE}");
-				Console.WriteLine($"\tT_MAX = {T_MAX}");
-				Console.WriteLine($"\tTRIALS = {TRIALS}");
-				Console.WriteLine($"\tEPOCHS = {EPOCHS}");
-				Console.WriteLine($"\tTEST_RUNS = {VAL_RUNS}");
-				Console.WriteLine($"\tTIMESTEP = {TIMESTEP}");
-				Console.WriteLine($"\tLEARNING_RATE = {LEARNING_RATE}");
-				Console.WriteLine($"\tADAPTIVE_LEARNING_RATE_FACTOR = {ADAPTIVE_LEARNING_RATE_FACTOR}");
-				Console.WriteLine("#############################################################################");
+				double predictionRaw = bestNetwork.Predict(sample, T_MAX, TIMESTEP);
+				bool prediction = DataManager.ConvertSpikeTimeToResult(predictionRaw);
+				bool label = DataManager.ConvertSpikeTimeToResult(sample.Output);
+
+				result.Predictions.Add(new Prediction(sampleI * INPUT_SIZE, sampleI * INPUT_SIZE + INPUT_SIZE, prediction, label));
+				sampleI++;
 			}
-
-			void Test(Network bestNetwork, int trial, bool plot)
-			{
-				Console.WriteLine("Testing ... ");
-				Sample[] testDataSet = DataManager.GetSamples(0, INPUT_SIZE, DataSet.Test);
-				double[] ecgRaw = DataManager.GetRawData(DataSet.Test, testDataSet.Length * INPUT_SIZE, preprocess: true);
-				Dictionary<double, bool> ecgSignalsSpikeTrain = DataManager.GetSpikesOfDataset(DataSet.Test, testDataSet.Length);
-				ValidationResult result = new(
-					errors: errors[trial].ToArray(), 
-					ecgRaw: ecgRaw, 
-				    ecgSignalSpikesTrain: ecgSignalsSpikeTrain.Where(s => s.Key < ecgRaw.Length).ToDictionary(k => k.Key, v => v.Value)
-				);
-
-				int sampleI = 0;
-				foreach (Sample sample in testDataSet)
-				{
-					double predictionRaw = bestNetwork.Predict(sample, T_MAX, TIMESTEP);
-					bool prediction = DataManager.ConvertSpikeTimeToResult(predictionRaw);
-					bool label = DataManager.ConvertSpikeTimeToResult(sample.Output);
-
-					result.Predictions.Add(new Prediction(sampleI * INPUT_SIZE, sampleI * INPUT_SIZE + INPUT_SIZE, prediction, label));
-					sampleI++;
-				}
-				result.Save(plot: plot);
-			}
+			result.Save(plot: plot);
 		}
 	}
 }
