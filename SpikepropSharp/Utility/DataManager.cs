@@ -20,7 +20,7 @@ namespace SpikepropSharp.Utility
 		private const int DATASET_VAL_SIZE = 100;
 		private const int SAMPLE_INDEX_TEST = 2;
 		private const int DATASET_TEST_SIZE = 500;
-		private const double SOD_SAMPLING_THRESHOLD = 1;
+		private const double SOD_SAMPLING_THRESHOLD = 0.05;
 		private const double SPIKE_TIME_INPUT = 6;
 		private const double SPIKE_TIME_TRUE = 10;
 		private const double SPIKE_TIME_FALSE = 16;                 // 16 -> 12: Reduces accuracy and train time by about half

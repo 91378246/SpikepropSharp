@@ -1,5 +1,4 @@
-﻿using MathNet.Numerics;
-using SpikepropSharp.Components;
+﻿using SpikepropSharp.Components;
 using SpikepropSharp.Data;
 using System.Diagnostics;
 
@@ -7,12 +6,16 @@ namespace SpikepropSharp.Utility
 {
 	public static class EcgHelper
 	{
+		// 92% bei Hidden = 2, Epochs = 250, 0.5 sampling
+		// 88% bei Hidden = 3, Epochs = 250, 0.5 sampling
+
+
 		// Network
 		private const int INPUT_SIZE = 10;                          // 10 -> 15: Accuracy reduces, train time strongly increases
-		private const int HIDDEN_SIZE = 2;                          // 2 -> 3: Reduces accuracy by about 5%, increases train time by about 50%, 2 -> 1: Reduces accuracy by about 4%
+		private const int HIDDEN_SIZE = 3;                          // 2 -> 3: Reduces accuracy by about 5%, increases train time by about 50%, 2 -> 1: Reduces accuracy by about 4%
 		private const int T_MAX = 40;                               // 40 -> 30: Reduces accuracy by about 4%, decreases train time by about 30%
 		private const int TRIALS = 1;
-		private const int EPOCHS = 500;
+		private const int EPOCHS = 1000;
 		private const int VAL_RUNS = 10;
 		private const double TIMESTEP = 0.1;
 		private const double LEARNING_RATE = 1e-2;                  // 1e-2 -> 1e-3:
@@ -71,7 +74,7 @@ namespace SpikepropSharp.Utility
 				if (loadPrevWeights && File.Exists(prevWeightsAndDelaysFile))
 				{
 					networks[trial].LoadWeightsAndDelays(prevWeightsAndDelaysFile);
-					Console.WriteLine($"[T{trial}] loaded weights and delays from {prevWeightsAndDelaysFile}");
+					ConsoleExtensions.WriteLine($"[T{trial}] loaded weights and delays from {prevWeightsAndDelaysFile}", ConsoleColor.Red);
 
 					Validate(rnd, networks[trial], color, trial, -1);
 					Test(errors[trial].ToArray(), networks[trial], trial, plot: true);
@@ -104,7 +107,7 @@ namespace SpikepropSharp.Utility
 						if (output_neuron.Spikes.Count == 0)
 						{
 							Console.ForegroundColor = color;
-							Console.WriteLine($"[T{trial}] No output spikes! Replacing with different trial.");
+							ConsoleExtensions.WriteLine($"[T{trial}] No output spikes! Replacing with different trial.", ConsoleColor.Red);
 							trial -= 1;
 							sumSquaredError = epoch = (int)1e9;
 							break;
@@ -136,22 +139,23 @@ namespace SpikepropSharp.Utility
 						networks[trial].SaveWeightsAndDelays($"network_{trial}_{DateTime.Now:ddMMyy}.json");
 					}
 
-					// Stopping criterion
-					if (sumSquaredError < 0.5)
-					{
-						avgNrOfEpochs = (avgNrOfEpochs * trial + epoch) / (trial + 1);
-						break;
-					}
-
-					if (epoch != 0 && epoch % epochsQuarter == 0)
+					if (epoch != 0 && epoch % 100 == 0)
 					{
 						// Test and validate
 						if (runTestsInBetween)
 						{
-							Validate(rnd, networks[trial], color, trial, epoch);
+							double accuracy = Validate(rnd, networks[trial], color, trial, epoch);
+
+							// Stopping criterion
+							if (accuracy >= 0.95)
+							{
+								ConsoleExtensions.WriteLine($"[T{trial}] Stopping criterion reached", ConsoleColor.Red);
+								avgNrOfEpochs = (avgNrOfEpochs * trial + epoch) / (trial + 1);
+								break;
+							}
 						}
 
-						Test(errors[trial].ToArray(), networks[trial], trial, plot: true);
+						Test(errors[trial].ToArray(), networks[trial], trial, plot: epoch % epochsQuarter == 0);
 
 						// Adaptive learning rate
 						double oldLr = adaptedLearningRate;
@@ -168,8 +172,7 @@ namespace SpikepropSharp.Utility
 
 			PrintConfiguration();
 			Validate(rnd, networkBest, ConsoleColor.Gray, -1, EPOCHS - 1);
-			int bestTrial = Array.IndexOf(networks, networkBest);
-			Test(errors[bestTrial].ToArray(), networkBest, bestTrial, plot: true);
+			Test(errors[0].ToArray(), networkBest, -1, plot: true);
 
 			Console.WriteLine("Done");
 			Console.ReadLine();
@@ -178,7 +181,7 @@ namespace SpikepropSharp.Utility
 				(ConsoleColor)Enum.GetValues(typeof(ConsoleColor)).GetValue(i + 2)!;			
 		}
 
-		private static void Validate(Random rnd, Network network, ConsoleColor color, int trial, int epoch)
+		private static double Validate(Random rnd, Network network, ConsoleColor color, int trial, int epoch)
 		{
 			Console.WriteLine($"[T{trial}] Running {VAL_RUNS} validations ...");
 
@@ -227,6 +230,8 @@ namespace SpikepropSharp.Utility
 			Console.WriteLine($"TRIAL {trial} EPOCH {epoch} VALIDATION RESULT");
 			Console.WriteLine(cm.ToString());
 			Console.WriteLine("#############################################################################");
+
+			return cm.Accuracy;
 		}
 
 		private static void PrintConfiguration()
