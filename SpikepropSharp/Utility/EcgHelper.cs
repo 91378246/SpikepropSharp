@@ -7,19 +7,21 @@ namespace SpikepropSharp.Utility
 	public static class EcgHelper
 	{
 		// 92% bei Hidden = 2, Epochs = 250, 0.5 sampling
+		// 90% bei Hidden = 2, Epochs = 150, 0.1 sampling
+		// 86% bei Hidden = 3, Epochs = , 0.1 sampling
+		// 82% bei Hidden = 2, Epochs = 250, 0.05 sampling
 		// 88% bei Hidden = 3, Epochs = 250, 0.5 sampling
 
 
 		// Network
 		private const int INPUT_SIZE = 10;                          // 10 -> 15: Accuracy reduces, train time strongly increases
-		private const int HIDDEN_SIZE = 3;                          // 2 -> 3: Reduces accuracy by about 5%, increases train time by about 50%, 2 -> 1: Reduces accuracy by about 4%
+		private const int HIDDEN_SIZE = 2;                          // 2 -> 3: Reduces accuracy by about 5%, increases train time by about 50%, 2 -> 1: Reduces accuracy by about 4%
 		private const int T_MAX = 40;                               // 40 -> 30: Reduces accuracy by about 4%, decreases train time by about 30%
-		private const int TRIALS = 1;
-		private const int EPOCHS = 1000;
+		private const int EPOCHS = 500;
 		private const int VAL_RUNS = 10;
 		private const double TIMESTEP = 0.1;
-		private const double LEARNING_RATE = 1e-2;                  // 1e-2 -> 1e-3:
-		private const double ADAPTIVE_LEARNING_RATE_FACTOR = 0.01;
+		private const double LEARNING_RATE = 1e-2;
+		private const double ADAPTIVE_LEARNING_RATE_FACTOR = 0.1;
 
 		private static DataManager DataManager { get; set; } = null!;
 
@@ -55,135 +57,120 @@ namespace SpikepropSharp.Utility
 
 			Console.WriteLine("Running ECG test\n");
 
-			double avgNrOfEpochs = 0;
-
 			// Multiple trials for statistics
-			Network[] networks = new Network[TRIALS];
+			Network network = CreateNetwork(rnd);
 			Network networkBest = new(rnd) { CurrentError = double.MaxValue };
-			Dictionary<int, List<double>> errors = new();
-			for (int trial = 0; trial < TRIALS; trial++)
+			Neuron output_neuron = network.Layers[(int)Layer.Output][0];
+			List<double> errors = new();
+
+			// Load a prev saved one
+			string prevWeightsAndDelaysFile = $"network_0_070523.json";
+			if (loadPrevWeights && File.Exists(prevWeightsAndDelaysFile))
 			{
-				ConsoleColor color = GetColorForIndex(trial);
+				network.LoadWeightsAndDelays(prevWeightsAndDelaysFile);
+				ConsoleExtensions.WriteLine($"Loaded weights and delays from {prevWeightsAndDelaysFile}", ConsoleColor.Red);
 
-				networks[trial] = CreateNetwork(rnd);
-				errors[trial] = new List<double>();
-				Neuron output_neuron = networks[trial].Layers[(int)Layer.Output][0];
-
-				// Load a prev saved one
-				string prevWeightsAndDelaysFile = $"network_0_070523.json";
-				if (loadPrevWeights && File.Exists(prevWeightsAndDelaysFile))
-				{
-					networks[trial].LoadWeightsAndDelays(prevWeightsAndDelaysFile);
-					ConsoleExtensions.WriteLine($"[T{trial}] loaded weights and delays from {prevWeightsAndDelaysFile}", ConsoleColor.Red);
-
-					Validate(rnd, networks[trial], color, trial, -1);
-					Test(errors[trial].ToArray(), networks[trial], trial, plot: true);
-					Debugger.Break();
-				}
-
-				Stopwatch swFullTraining = new();
-				swFullTraining.Start();
-
-				// Main training loop
-				int epochsQuarter = EPOCHS / 4;
-				double adaptedLearningRate = LEARNING_RATE;
-				for (int epoch = 0; epoch < EPOCHS; ++epoch)
-				{
-					Stopwatch swEpoch = new();
-					swEpoch.Start();
-
-					double sumSquaredError = 0;
-					// Debug.WriteLine($"LR[{epoch}]: {adaptedLearningRate}");
-
-					Sample[] samples = DataManager.GetRndSamples(rnd, INPUT_SIZE, DataSet.Train);
-					for (int sampleI = 0; sampleI < samples.Length; sampleI++)
-					{
-						// Debug.WriteLine($"Processing sample {sampleI + 1}/{DATASET_TRAIN_SIZE}");
-
-						// Forward propagation
-						networks[trial].Clear();
-						networks[trial].LoadSample(samples[sampleI]);
-						networks[trial].Forward(T_MAX, TIMESTEP);
-						if (output_neuron.Spikes.Count == 0)
-						{
-							Console.ForegroundColor = color;
-							ConsoleExtensions.WriteLine($"[T{trial}] No output spikes! Replacing with different trial.", ConsoleColor.Red);
-							trial -= 1;
-							sumSquaredError = epoch = (int)1e9;
-							break;
-						}
-						sumSquaredError += 0.5 * Math.Pow(output_neuron.Spikes[0] - output_neuron.FixedOutput, 2);
-
-						// Backward propagation
-						for (int l = networks[trial].Layers.Length - 1; l >= 1; l--)
-						{
-							for (int n = 0; n < networks[trial].Layers[l].Length; n++)
-							{
-								networks[trial].Layers[l][n].ComputeDeltaWeights(adaptedLearningRate);
-								for (int synI = 0; synI < networks[trial].Layers[l][n].SynapsesIn.Length; synI++)
-								{
-									networks[trial].Layers[l][n].SynapsesIn[synI].Weight += networks[trial].Layers[l][n].SynapsesIn[synI].WeightDelta;
-									networks[trial].Layers[l][n].SynapsesIn[synI].WeightDelta = 0;
-								}
-							}
-						}
-					}
-					Console.ForegroundColor = color;
-					Console.WriteLine($"[T{trial}] ep:{epoch} er:{sumSquaredError} t:{swEpoch.Elapsed:mm\\:ss}");
-					networks[trial].CurrentError = sumSquaredError;
-					errors[trial].Add(sumSquaredError);
-
-					if (sumSquaredError < networkBest.CurrentError)
-					{
-						networkBest = networks[trial].Clone();
-						networks[trial].SaveWeightsAndDelays($"network_{trial}_{DateTime.Now:ddMMyy}.json");
-					}
-
-					if (epoch != 0 && epoch % 100 == 0)
-					{
-						// Test and validate
-						if (runTestsInBetween)
-						{
-							double accuracy = Validate(rnd, networks[trial], color, trial, epoch);
-
-							// Stopping criterion
-							if (accuracy >= 0.95)
-							{
-								ConsoleExtensions.WriteLine($"[T{trial}] Stopping criterion reached", ConsoleColor.Red);
-								avgNrOfEpochs = (avgNrOfEpochs * trial + epoch) / (trial + 1);
-								break;
-							}
-						}
-
-						Test(errors[trial].ToArray(), networks[trial], trial, plot: epoch % epochsQuarter == 0);
-
-						// Adaptive learning rate
-						double oldLr = adaptedLearningRate;
-						adaptedLearningRate *= ADAPTIVE_LEARNING_RATE_FACTOR;
-						Console.WriteLine($"[T{trial}] Learning rate adapted: {oldLr} => {adaptedLearningRate}");
-					}
-				}
-
-				Console.WriteLine($"[T{trial}] finished after {swFullTraining.Elapsed:hh\\:mm\\:ss}");
+				Validate(rnd, network, -1);
+				Test(errors.ToArray(), network, plot: true);
+				Debugger.Break();
 			}
 
-			Console.WriteLine($"Average nr of epochs per trial: {avgNrOfEpochs}");
+			Stopwatch swFullTraining = new();
+			swFullTraining.Start();
+
+			// Main training loop
+			int epochsQuarter = EPOCHS / 4;
+			double adaptedLearningRate = LEARNING_RATE;
+			for (int epoch = 0; epoch < EPOCHS; ++epoch)
+			{
+				Stopwatch swEpoch = new();
+				swEpoch.Start();
+
+				double sumSquaredError = 0;
+				// Debug.WriteLine($"LR[{epoch}]: {adaptedLearningRate}");
+
+				Sample[] samples = DataManager.GetRndSamples(rnd, INPUT_SIZE, DataSet.Train);
+				for (int sampleI = 0; sampleI < samples.Length; sampleI++)
+				{
+					// Debug.WriteLine($"Processing sample {sampleI + 1}/{DATASET_TRAIN_SIZE}");
+
+					// Forward propagation
+					network.Clear();
+					network.LoadSample(samples[sampleI]);
+					network.Forward(T_MAX, TIMESTEP);
+					if (output_neuron.Spikes.Count == 0)
+					{
+						ConsoleExtensions.WriteLine("No output spikes! Replacing with different trial.", ConsoleColor.Red);
+						sumSquaredError = epoch = (int)1e9;
+						break;
+					}
+					sumSquaredError += 0.5 * Math.Pow(output_neuron.Spikes[0] - output_neuron.FixedOutput, 2);
+
+					// Backward propagation
+					for (int l = network.Layers.Length - 1; l >= 1; l--)
+					{
+						for (int n = 0; n < network.Layers[l].Length; n++)
+						{
+							network.Layers[l][n].ComputeDeltaWeights(adaptedLearningRate);
+							for (int synI = 0; synI < network.Layers[l][n].SynapsesIn.Length; synI++)
+							{
+								network.Layers[l][n].SynapsesIn[synI].Weight += network.Layers[l][n].SynapsesIn[synI].WeightDelta;
+								network.Layers[l][n].SynapsesIn[synI].WeightDelta = 0;
+							}
+						}
+					}
+				}
+
+				ConsoleExtensions.WriteLine($"ep:{epoch:0000} er:{Math.Round(sumSquaredError, 3):00.000} t:{swEpoch.Elapsed:mm\\:ss\\:fff}", 
+					sumSquaredError < networkBest.CurrentError ? ConsoleColor.Green : ConsoleColor.Gray);
+				network.CurrentError = sumSquaredError;
+				errors.Add(sumSquaredError);
+
+				if (sumSquaredError < networkBest.CurrentError)
+				{
+					networkBest.CurrentError = sumSquaredError;
+					//networkBest = network.Clone();
+					network.SaveWeightsAndDelays($"network_{DateTime.Now:ddMMyy}.json");
+				}
+
+				if (epoch != 0 && (epoch % 100 == 0 || epoch % epochsQuarter == 0))
+				{
+					// Test and validate
+					if (runTestsInBetween)
+					{
+						double accuracy = Validate(rnd, network, epoch);
+
+						// Stopping criterion
+						if (accuracy >= 0.95)
+						{
+							ConsoleExtensions.WriteLine("Stopping criterion reached", ConsoleColor.Red);
+							break;
+						}
+					}
+
+					Test(errors.ToArray(), network, plot: epoch % epochsQuarter == 0);
+
+					// Adaptive learning rate
+					double oldLr = adaptedLearningRate;
+					adaptedLearningRate *= ADAPTIVE_LEARNING_RATE_FACTOR;
+					Console.WriteLine($"Learning rate adapted: {oldLr} => {adaptedLearningRate}");
+				}
+			}
+
+			Console.WriteLine($"Finished after {swFullTraining.Elapsed:hh\\:mm\\:ss\\:fff}");
 			Console.WriteLine("\n#############################################################################");
 
 			PrintConfiguration();
-			Validate(rnd, networkBest, ConsoleColor.Gray, -1, EPOCHS - 1);
-			Test(errors[0].ToArray(), networkBest, -1, plot: true);
+			Validate(rnd, networkBest, EPOCHS - 1);
+			Test(errors.ToArray(), networkBest, plot: true);
 
 			Console.WriteLine("Done");
 			Console.ReadLine();
-
-			static ConsoleColor GetColorForIndex(int i) =>
-				(ConsoleColor)Enum.GetValues(typeof(ConsoleColor)).GetValue(i + 2)!;			
 		}
 
-		private static double Validate(Random rnd, Network network, ConsoleColor color, int trial, int epoch)
+		private static double Validate(Random rnd, Network network, int epoch)
 		{
-			Console.WriteLine($"[T{trial}] Running {VAL_RUNS} validations ...");
+			Console.WriteLine($"Running {VAL_RUNS} validations ...");
 
 			// Test
 			ConfusionMatrix cm = new();
@@ -225,9 +212,8 @@ namespace SpikepropSharp.Utility
 				}
 			}
 
-			Console.ForegroundColor = color;
 			Console.WriteLine("#############################################################################");
-			Console.WriteLine($"TRIAL {trial} EPOCH {epoch} VALIDATION RESULT");
+			Console.WriteLine($"EPOCH {epoch} VALIDATION RESULT");
 			Console.WriteLine(cm.ToString());
 			Console.WriteLine("#############################################################################");
 
@@ -242,7 +228,6 @@ namespace SpikepropSharp.Utility
 			Console.WriteLine($"\tINPUT_SIZE = {INPUT_SIZE}");
 			Console.WriteLine($"\tHIDDEN_SIZE = {HIDDEN_SIZE}");
 			Console.WriteLine($"\tT_MAX = {T_MAX}");
-			Console.WriteLine($"\tTRIALS = {TRIALS}");
 			Console.WriteLine($"\tEPOCHS = {EPOCHS}");
 			Console.WriteLine($"\tTEST_RUNS = {VAL_RUNS}");
 			Console.WriteLine($"\tTIMESTEP = {TIMESTEP}");
@@ -251,7 +236,7 @@ namespace SpikepropSharp.Utility
 			Console.WriteLine("#############################################################################");
 		}
 
-		private static void Test(double[] errors, Network bestNetwork, int trial, bool plot)
+		private static void Test(double[] errors, Network bestNetwork, bool plot)
 		{
 			Console.WriteLine("Testing ... ");
 			Sample[] testDataSet = DataManager.GetSamples(0, INPUT_SIZE, DataSet.Test);

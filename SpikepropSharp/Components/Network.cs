@@ -1,4 +1,5 @@
 ﻿using SpikepropSharp.Utility;
+using System.Net.Http.Headers;
 using System.Text.Json;
 
 namespace SpikepropSharp.Components
@@ -210,13 +211,16 @@ namespace SpikepropSharp.Components
 
         public Network Clone()
         {
+            throw new NotImplementedException("Strange behavioral by SetWeightsAndDelays");
+
             (List<double> weights, List<double> delays) = GetWeightsAndDelays();
 
             Network result = new(Rnd);
             result.Create(NamesInput, NamesHidden, NamesOutput);
             result.SetWeightsAndDelays(weights, delays);
+            result.CurrentError = CurrentError;
 
-            return result;
+			return result;
         }
     }
 }
