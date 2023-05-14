@@ -138,6 +138,7 @@ namespace SpikepropSharp.Utility
 					// Test and validate
 					if (runTestsInBetween)
 					{
+						Console.WriteLine($"Validating after {swFullTraining.Elapsed:hh\\:mm\\:ss\\:fff}");
 						double accuracy = Validate(rnd, network, epoch);
 
 						// Stopping criterion
