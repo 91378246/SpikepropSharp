@@ -362,30 +362,5 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 
-
-/SpikepropSharp/Data/Samples/*
-/SpikepropSharp/Data/Samples/0_threshold.mat
-/SpikepropSharp/Data/Samples/1_adc.mat
-/SpikepropSharp/Data/Samples/1_threshold.mat
-/SpikepropSharp/Data/Samples/ecg_0.mat
-/SpikepropSharp/Data/Samples/ecg_0_ann.mat
-/SpikepropSharp/Data/Samples/ecg_1.mat
-/SpikepropSharp/Data/Samples/ecg_10.mat
-/SpikepropSharp/Data/Samples/ecg_10_ann.mat
-/SpikepropSharp/Data/Samples/ecg_1_ann.mat
-/SpikepropSharp/Data/Samples/ecg_2.mat
-/SpikepropSharp/Data/Samples/ecg_2_ann.mat
-/SpikepropSharp/Data/Samples/ecg_3.mat
-/SpikepropSharp/Data/Samples/ecg_3_ann.mat
-/SpikepropSharp/Data/Samples/ecg_4.mat
-/SpikepropSharp/Data/Samples/ecg_4_ann.mat
-/SpikepropSharp/Data/Samples/ecg_5.mat
-/SpikepropSharp/Data/Samples/ecg_5_ann.mat
-/SpikepropSharp/Data/Samples/ecg_6.mat
-/SpikepropSharp/Data/Samples/ecg_6_ann.mat
-/SpikepropSharp/Data/Samples/ecg_7.mat
-/SpikepropSharp/Data/Samples/ecg_7_ann.mat
-/SpikepropSharp/Data/Samples/ecg_8.mat
-/SpikepropSharp/Data/Samples/ecg_8_ann.mat
-/SpikepropSharp/Data/Samples/ecg_9.mat
-/SpikepropSharp/Data/Samples/ecg_9_ann.mat
+# Samples
+/SpikepropSharp/Data/Samples/**
