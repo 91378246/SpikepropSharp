@@ -7,10 +7,9 @@ public sealed class Synapse
     public double Delay { get; set; }
     public double WeightDelta { get; set; }
 
-    public Synapse(Neuron neuronPre, double weight, double delay)
+    public Synapse(Neuron neuronPre, double delay)
     {
         NeuronPre = neuronPre;
-        Weight = weight;
         Delay = delay;
     }
 }

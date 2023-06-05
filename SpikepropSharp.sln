@@ -5,7 +5,13 @@ VisualStudioVersion = 17.6.33513.286
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SpikepropSharp", "SpikepropSharp\SpikepropSharp.csproj", "{B1F32660-D7C0-43DA-B986-6EF36841F35D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpikepropSharp.Api", "SpikepropSharp.Api\SpikepropSharp.Api.csproj", "{47FEB67B-541E-4F52-913F-9205FFCCD908}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SpikepropSharp.Api", "SpikepropSharp.Api\SpikepropSharp.Api.csproj", "{47FEB67B-541E-4F52-913F-9205FFCCD908}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{B88E8810-D2D7-4E5F-8BC0-E6DFCD0D01F1}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+		ResultSample.png = ResultSample.png
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

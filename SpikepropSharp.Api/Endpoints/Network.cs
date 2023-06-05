@@ -18,7 +18,7 @@ internal static class Network
         int[] result = new int[3];
         for (int i = 0; i < result.Length; i++)
         {
-            result[i] = network.Layers[i].Count;
+            result[i] = network.Layers[i].Length;
         }
 
         return result;
