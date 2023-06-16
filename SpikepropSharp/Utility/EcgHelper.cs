@@ -6,17 +6,10 @@ namespace SpikepropSharp.Utility;
 
 public static class EcgHelper
 {
-	// 92% bei Hidden = 2, Epochs = 250, 0.5 sampling
-	// 90% bei Hidden = 2, Epochs = 150, 0.1 sampling
-	// 86% bei Hidden = 3, Epochs = , 0.1 sampling
-	// 82% bei Hidden = 2, Epochs = 250, 0.05 sampling
-	// 88% bei Hidden = 3, Epochs = 250, 0.5 sampling
-
-
 	// Network
-	private const int INPUT_SIZE = 10;                          // 10 -> 15: Accuracy reduces, train time strongly increases
-	private const int HIDDEN_SIZE = 2;                          // 2 -> 3: Reduces accuracy by about 5%, increases train time by about 50%, 2 -> 1: Reduces accuracy by about 4%
-	private const int T_MAX = 40;                               // 40 -> 30: Reduces accuracy by about 4%, decreases train time by about 30%
+	private const int INPUT_SIZE = 10;
+	private const int HIDDEN_SIZE = 2;
+	private const int T_MAX = 40;
 	private const int EPOCHS = 500;
 	private const int VAL_RUNS = 10;
 	private const double TIMESTEP = 0.1;

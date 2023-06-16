@@ -13,15 +13,6 @@ There are two data files per sample:
     * \["anntype"\]: string
     * \["subtype"\]: Byte[,]
 
-Files with a matching index where created at the same time by two controllers (see Hardware setup). 
+Files with a matching index where created at the same time by two controllers. 
 
 **Reading**: To read a file, open it with a library which is able to parse Matlab datafiles and read the `adc` or `spike` column (depending on the sample type).
-
-The [Functions](Functions/) directory contains the Matlab functions to parse the data.
-
-## Hardware setup
-### Measuring circuit
-![Measuring circuit](Images/MeasuringCircuit.jpg)
-
-### Electrode placement
-![Electrode placement](Images/ElectrodePlacement.png)
