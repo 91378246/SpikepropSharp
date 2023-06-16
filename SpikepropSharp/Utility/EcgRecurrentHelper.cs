@@ -1,15 +1,12 @@
 ﻿using MatFileHandler;
 using SpikepropSharp.Components;
-using SpikepropSharp.ComponentsRecurrent;
 using SpikepropSharp.Data;
-using System;
-using System.Diagnostics;
 using Network = SpikepropSharp.ComponentsRecurrent.Network;
 using Neuron = SpikepropSharp.ComponentsRecurrent.Neuron;
 
 namespace SpikepropSharp.Utility
 {
-    public static class EcgRecurrentHelper
+	public static class EcgRecurrentHelper
     {
         // Data
         private const string DATA_DIR_PATH = "Data";

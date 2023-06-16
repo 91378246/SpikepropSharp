@@ -79,7 +79,7 @@ namespace SpikepropSharp.Utility
                         }
                         sumSquaredError += 0.5 * Math.Pow(output_neuron.Spikes.First() - output_neuron.FixedOutput, 2);
 
-                        // Backward propagation and changing weights (no batch-mode)
+                        // Backward propagation
                         for (int l = 0; l < network.Layers.Length; l++)
                         {
                             for (int n = 0; n < network.Layers[l].Length; n++)
