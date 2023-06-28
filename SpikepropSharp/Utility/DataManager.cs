@@ -49,10 +49,39 @@ internal class DataManager
 
 		static DataSetRecord CreateDataSetRecord(int sampleIndex)
 		{
-			double[] ecgSignalRaw = LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, $"ecg_{sampleIndex}.mat"), "signal");
+			if (!Directory.Exists(DATA_DIR_PATH))
+			{
+				Directory.CreateDirectory(DATA_DIR_PATH);
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"[ERROR] {DATA_DIR_PATH} is empty");
+				Console.Read();
+				Environment.Exit(1);
+            }
+
+			string unlabelledPath = Path.Combine(DATA_DIR_PATH, $"ecg_{sampleIndex}.mat");
+            if (!File.Exists(unlabelledPath))
+            {
+                Directory.CreateDirectory(DATA_DIR_PATH);
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"[ERROR] Failed to find {unlabelledPath}");
+                Console.Read();
+                Environment.Exit(1);
+            }
+
+			string labelledPath = Path.Combine(DATA_DIR_PATH, $"ecg_{sampleIndex}_ann.mat");
+            if (!File.Exists(labelledPath))
+            {
+                Directory.CreateDirectory(DATA_DIR_PATH);
+				Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"[ERROR] Failed to find {labelledPath}");
+                Console.Read();
+                Environment.Exit(1);
+            }
+
+            double[] ecgSignalRaw = LoadMatlabEcgData(unlabelledPath, "signal");
 			return new(
 				Spikes: DataPreprocessor.ApplySodSampling(PreprocessEcgSignal(ecgSignalRaw), SOD_SAMPLING_THRESHOLD),
-				Labels: LoadMatlabEcgData(Path.Combine(DATA_DIR_PATH, $"ecg_{sampleIndex}_ann.mat"), "ann").ToArray()
+				Labels: LoadMatlabEcgData(labelledPath, "ann").ToArray()
 			);
 		}
 	}

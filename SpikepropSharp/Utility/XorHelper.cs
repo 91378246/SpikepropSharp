@@ -72,7 +72,7 @@ namespace SpikepropSharp.Utility
                         if (output_neuron.Spikes.Count == 0)
                         {
                             Console.ForegroundColor = color;
-                            Console.WriteLine($"[T{trial}] No output spikes! Replacing with different trial.");
+                            Console.WriteLine($"[T{trial}] [ERROR] No output spikes");
                             trial -= 1;
                             sumSquaredError = epoch = (int)1e9;
                             break;

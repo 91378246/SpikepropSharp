@@ -56,8 +56,8 @@ public static class EcgHelper
 		Neuron output_neuron = network.Layers[(int)Layer.Output][0];
 		List<double> errors = new();
 
-		// Load a prev saved one
-		string prevWeightsAndDelaysFile = $"network_0_070523.json";
+        // Load a prev saved one
+        string prevWeightsAndDelaysFile = $"network_0_070523.json";
 		if (loadPrevWeights && File.Exists(prevWeightsAndDelaysFile))
 		{
 			network.LoadWeightsAndDelays(prevWeightsAndDelaysFile);
@@ -93,7 +93,7 @@ public static class EcgHelper
 				network.Forward(T_MAX, TIMESTEP);
 				if (output_neuron.Spikes.Count == 0)
 				{
-					ConsoleExtensions.WriteLine("No output spikes! Replacing with different trial.", ConsoleColor.Red);
+					ConsoleExtensions.WriteLine("[ERROR] No output spikes", ConsoleColor.Red);
 					sumSquaredError = epoch = (int)1e9;
 					break;
 				}
