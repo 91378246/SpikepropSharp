@@ -1,5 +1,8 @@
 ﻿namespace SpikepropSharp.Components;
 
+/// <summary>
+/// Implementation of <a href="https://www.sciencedirect.com/science/article/pii/S0020019005001560"/>
+/// </summary>
 public sealed class Neuron
 {
 	/// <summary>
