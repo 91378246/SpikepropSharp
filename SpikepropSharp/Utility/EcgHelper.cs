@@ -10,7 +10,7 @@ public static class EcgHelper
 	private const int INPUT_SIZE = 10;
 	private const int HIDDEN_SIZE = 2;
 	private const int T_MAX = 40;
-	private const int EPOCHS = 500;
+	private const int EPOCHS = 400;
 	private const int VAL_RUNS = 10;
 	private const double TIMESTEP = 0.1;
 	private const double LEARNING_RATE = 1e-2;
@@ -71,8 +71,8 @@ public static class EcgHelper
 		Stopwatch swFullTraining = new();
 		swFullTraining.Start();
 
-		// Main training loop
-		int epochsQuarter = EPOCHS / 4;
+        // Main training loop
+        int epochsQuarter = EPOCHS / 4;
 		double adaptedLearningRate = LEARNING_RATE;
 		for (int epoch = 0; epoch < EPOCHS; ++epoch)
 		{
@@ -116,6 +116,7 @@ public static class EcgHelper
 
 			ConsoleExtensions.WriteLine($"ep:{epoch:0000} er:{Math.Round(sumSquaredError, 3):00.000} t:{swEpoch.Elapsed:mm\\:ss\\:fff}",
 				sumSquaredError < networkBest.CurrentError ? ConsoleColor.Green : ConsoleColor.Gray);
+			Console.Title = $"Training ({Convert.ToInt32(swFullTraining.ElapsedMilliseconds / (double)(epoch + 1))}ms per epoch)";
 			network.CurrentError = sumSquaredError;
 			errors.Add(sumSquaredError);
 
@@ -148,7 +149,8 @@ public static class EcgHelper
 				double oldLr = adaptedLearningRate;
 				adaptedLearningRate *= ADAPTIVE_LEARNING_RATE_FACTOR;
 				Console.WriteLine($"Learning rate adapted: {oldLr} => {adaptedLearningRate}");
-			}
+                Debugger.Break();
+            }
 		}
 
 		Console.WriteLine($"Finished after {swFullTraining.Elapsed:hh\\:mm\\:ss\\:fff}");

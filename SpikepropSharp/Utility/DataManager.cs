@@ -23,7 +23,7 @@ internal class DataManager
 	private const double SOD_SAMPLING_THRESHOLD = 0.5;
 	private const double SPIKE_TIME_INPUT = 6;
 	private const double SPIKE_TIME_TRUE = 10;
-	private const double SPIKE_TIME_FALSE = 16;
+	private const double SPIKE_TIME_FALSE = 20;
 
 	/// <summary>
 	/// Contains the pre-processed data.<br/>
